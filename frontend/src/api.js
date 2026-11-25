@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-// Dynamically resolve API URL: supports Render deployments, custom env vars, and local dev
+// Dynamically resolve API URL: supports Render backend (https://atro-scac.onrender.com), custom env vars, and local dev
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:8000/api'
-    : '/api'
+    : 'https://atro-scac.onrender.com/api'
 );
 
 const api = axios.create({
