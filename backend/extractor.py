@@ -19,7 +19,7 @@ class Statement:
 class FunctionDef:
     def __init__(self, name: str, params: List[Dict[str, str]], visibility: str,
                  mutability: str, modifiers: List[str], body_raw: str,
-                 contract_name: str, start_line: int = 1):
+                 contract_name: str, start_line: int = 1, end_line: int = 1):
         self.name = name
         self.params = params
         self.visibility = visibility
@@ -28,7 +28,11 @@ class FunctionDef:
         self.body_raw = body_raw
         self.contract_name = contract_name
         self.start_line = start_line
+        self.end_line = end_line
         self.statements: List[Statement] = []
+        self.state_writes: List[str] = []
+        self.internal_calls: List[str] = []
+        self.external_calls: List[str] = []
 
     @property
     def signature(self) -> str:
@@ -55,36 +59,59 @@ class FunctionDef:
             "is_externally_callable": self.is_externally_callable,
             "is_state_modifying": self.is_state_modifying,
             "start_line": self.start_line,
+            "end_line": self.end_line,
             "body_raw": self.body_raw,
+            "state_writes": self.state_writes,
+            "internal_calls": self.internal_calls,
+            "external_calls": self.external_calls,
             "statements": [s.to_dict() for s in self.statements]
+        }
+
+
+class StateVariable:
+    def __init__(self, name: str, var_type: str, visibility: str = "internal"):
+        self.name = name
+        self.var_type = var_type
+        self.visibility = visibility
+        self.written_by: List[str] = []
+        self.guarded_by: List[str] = []
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "type": self.var_type,
+            "visibility": self.visibility,
+            "written_by": list(set(self.written_by)),
+            "guarded_by": list(set(self.guarded_by))
         }
 
 
 class SolidityExtractor:
     """
     Robust Solidity source parser and AST extractor.
-    Extracts contracts, state variables, modifiers, functions, and parses function bodies
-    into structured statements while inlining modifiers and resolving control flow.
+    Extracts contracts, state variables, modifiers, functions, and maps their
+    structural relationships (calls, state writes, modifier guards).
     """
 
     def __init__(self, source_code: str):
         self.source_code = source_code
         self.contracts: Dict[str, Dict[str, Any]] = {}
         self.modifiers: Dict[str, Dict[str, Any]] = {}
+        self.state_variables: Dict[str, List[StateVariable]] = {}
         self.candidate_functions: List[FunctionDef] = []
+        self.all_functions: List[FunctionDef] = []
+        self.contract_relationships: Dict[str, List[Dict[str, Any]]] = {}
         self._parse()
 
     def _strip_comments(self, code: str) -> str:
-        # Strip /* ... */ multi-line comments
         code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
-        # Strip // single-line comments
         code = re.sub(r'//.*', '', code)
         return code
 
     def _parse(self):
         clean_code = self._strip_comments(self.source_code)
 
-        # 1. Extract modifiers globally or per contract
+        # 1. Extract modifiers globally
         modifier_pattern = re.compile(
             r'modifier\s+([a-zA-Z0-9_]+)\s*(?:\((.*?)\))?\s*\{',
             re.MULTILINE
@@ -97,7 +124,8 @@ class SolidityExtractor:
             self.modifiers[mod_name] = {
                 "name": mod_name,
                 "params": self._parse_param_list(params_raw),
-                "body": body
+                "body": body,
+                "guarded_functions": []
             }
 
         # 2. Extract Contracts
@@ -111,16 +139,28 @@ class SolidityExtractor:
             inherits = [b.strip() for b in match.group(3).split(",")] if match.group(3) else []
             start_pos = match.end()
             contract_body = self._extract_balanced_block(clean_code, start_pos - 1)
+
+            # Calculate contract start line in original source
+            start_line = self.source_code[:match.start()].count('\n') + 1
+
             self.contracts[name] = {
                 "kind": kind,
                 "name": name,
                 "inherits": inherits,
-                "body": contract_body
+                "body": contract_body,
+                "start_line": start_line
             }
 
-            # If it's a contract, parse its functions
             if "interface" not in kind:
-                self._parse_contract_functions(name, contract_body)
+                # Extract state variables
+                state_vars = self._parse_state_variables(contract_body)
+                self.state_variables[name] = state_vars
+
+                # Extract functions
+                self._parse_contract_functions(name, contract_body, state_vars)
+
+                # Build relationships for this contract
+                self._build_relationships(name)
 
     def _extract_balanced_block(self, text: str, open_brace_pos: int) -> str:
         depth = 0
@@ -158,8 +198,6 @@ class SolidityExtractor:
             if not part:
                 continue
             tokens = part.split()
-            # typical: "address newOwner", "uint256 amount", "bytes32 role"
-            # handle memory/calldata/storage
             clean_tokens = [t for t in tokens if t not in ("memory", "calldata", "storage")]
             if len(clean_tokens) >= 2:
                 params.append({"type": clean_tokens[0], "name": clean_tokens[-1]})
@@ -167,8 +205,37 @@ class SolidityExtractor:
                 params.append({"type": clean_tokens[0], "name": ""})
         return params
 
-    def _parse_contract_functions(self, contract_name: str, body: str):
-        # Match function header: function foo(...) <attributes> {
+    def _parse_state_variables(self, body: str) -> List[StateVariable]:
+        state_vars = []
+        # Pattern for state variable declarations (excluding functions, modifiers, events, structs)
+        lines = [line.strip() for line in body.split(';') if line.strip()]
+        for line in lines:
+            line_clean = line.strip()
+            if any(line_clean.startswith(kw) for kw in (
+                "function", "modifier", "event", "struct", "enum", "constructor", "mapping"
+            )):
+                if line_clean.startswith("mapping"):
+                    m = re.search(r'mapping\s*\(.*?\)\s*(public|private|internal)?\s*([a-zA-Z0-9_]+)', line_clean)
+                    if m:
+                        vis = m.group(1) or "internal"
+                        vname = m.group(2)
+                        state_vars.append(StateVariable(vname, "mapping", vis))
+                continue
+
+            # Standard types: address, uint256, bool, bytes32, string, etc.
+            var_match = re.search(
+                r'\b(address|uint256|uint8|uint|int|bool|bytes32|string|bytes)\b\s*(?:\[.*?\])?\s*(public|private|internal|constant|immutable)?\s*(?:public|private|internal|constant|immutable)?\s*([a-zA-Z0-9_]+)',
+                line_clean
+            )
+            if var_match:
+                vtype = var_match.group(1)
+                vis = var_match.group(2) or "internal"
+                vname = var_match.group(3)
+                state_vars.append(StateVariable(vname, vtype, vis))
+
+        return state_vars
+
+    def _parse_contract_functions(self, contract_name: str, body: str, state_vars: List[StateVariable]):
         fn_pattern = re.compile(
             r'\bfunction\s+([a-zA-Z0-9_]+)\s*\((.*?)\)\s*([^{;]*)(?:\{|;)',
             re.MULTILINE | re.DOTALL
@@ -179,8 +246,7 @@ class SolidityExtractor:
             raw_params = match.group(2).strip()
             attrs_raw = match.group(3).strip()
 
-            # Determine visibility
-            visibility = "public"  # default in solidity if unspecified
+            visibility = "public"
             if re.search(r'\bexternal\b', attrs_raw):
                 visibility = "external"
             elif re.search(r'\bpublic\b', attrs_raw):
@@ -190,7 +256,6 @@ class SolidityExtractor:
             elif re.search(r'\bprivate\b', attrs_raw):
                 visibility = "private"
 
-            # Determine mutability
             mutability = "nonpayable"
             if re.search(r'\bview\b', attrs_raw):
                 mutability = "view"
@@ -199,23 +264,28 @@ class SolidityExtractor:
             elif re.search(r'\bpayable\b', attrs_raw):
                 mutability = "payable"
 
-            # Extract modifiers applied to this function
-            # Clean standard keywords from attrs_raw
             clean_attrs = re.sub(
                 r'\b(public|external|internal|private|view|pure|payable|virtual|override)\b',
                 '',
                 attrs_raw
             )
-            # Remove returns(...)
             clean_attrs = re.sub(r'returns\s*\([^)]*\)', '', clean_attrs)
             modifiers = [m.strip() for m in re.findall(r'[a-zA-Z0-9_]+(?:\([^)]*\))?', clean_attrs) if m.strip()]
 
-            # Extract function body if present
             end_match = match.end()
             if body[end_match - 1] == '{':
                 fn_body = self._extract_balanced_block(body, end_match - 1)
             else:
                 fn_body = ""
+
+            # Calculate precise line numbers in source
+            func_search_str = f"function {fn_name}"
+            func_idx = self.source_code.find(func_search_str)
+            if func_idx != -1:
+                start_line = self.source_code[:func_idx].count('\n') + 1
+            else:
+                start_line = 1
+            end_line = start_line + max(1, fn_body.count('\n'))
 
             params = self._parse_param_list(raw_params)
             fn_obj = FunctionDef(
@@ -225,33 +295,100 @@ class SolidityExtractor:
                 mutability=mutability,
                 modifiers=modifiers,
                 body_raw=fn_body,
-                contract_name=contract_name
+                contract_name=contract_name,
+                start_line=start_line,
+                end_line=end_line
             )
 
-            # Parse statements in function body
+            # Track modifiers applied
+            for mod in modifiers:
+                mod_name = mod.split('(')[0].strip()
+                if mod_name in self.modifiers:
+                    self.modifiers[mod_name]["guarded_functions"].append(fn_name)
+
+            # Parse statements
             fn_obj.statements = self._parse_statements(fn_body)
 
-            # Filter candidate functions:
-            # ASTRO focuses on externally callable (public/external) state-modifying functions
+            # Analyze state writes and calls
+            for sv in state_vars:
+                # Check if this function modifies this state variable
+                pattern = rf'\b{sv.name}\s*(\=|\+\=|\-\=|\*\=|\/\=)'
+                if re.search(pattern, fn_body):
+                    fn_obj.state_writes.append(sv.name)
+                    sv.written_by.append(fn_name)
+                    if modifiers:
+                        sv.guarded_by.extend(modifiers)
+
+            # Detect external calls
+            for call_kw in (".transfer(", ".send(", ".call{", ".call(", "IERC20("):
+                if call_kw in fn_body:
+                    fn_obj.external_calls.append(call_kw)
+
+            # Detect internal calls
+            internal_candidates = [
+                f.name for f in self.all_functions if f.contract_name == contract_name
+            ]
+            for ic in internal_candidates:
+                if ic != fn_name and f"{ic}(" in fn_body:
+                    fn_obj.internal_calls.append(ic)
+
+            self.all_functions.append(fn_obj)
             if fn_obj.is_externally_callable and fn_obj.is_state_modifying:
                 self.candidate_functions.append(fn_obj)
+
+    def _build_relationships(self, contract_name: str):
+        rels = []
+        c_funcs = [f for f in self.all_functions if f.contract_name == contract_name]
+        c_state_vars = self.state_variables.get(contract_name, [])
+
+        for fn in c_funcs:
+            # Modifiers applied
+            for mod in fn.modifiers:
+                rels.append({
+                    "source": fn.name,
+                    "target": mod,
+                    "type": "APPLIES_MODIFIER",
+                    "description": f"Function `{fn.name}` is guarded by modifier `{mod}`."
+                })
+            # State writes
+            for sw in fn.state_writes:
+                rels.append({
+                    "source": fn.name,
+                    "target": sw,
+                    "type": "MODIFIES_STATE",
+                    "description": f"Function `{fn.name}` mutates state variable `{sw}`."
+                })
+            # External calls
+            for ec in fn.external_calls:
+                rels.append({
+                    "source": fn.name,
+                    "target": ec.replace("(", "").strip(),
+                    "type": "EXTERNAL_CALL",
+                    "description": f"Function `{fn.name}` performs external call `{ec}`."
+                })
+            # Internal calls
+            for ic in fn.internal_calls:
+                rels.append({
+                    "source": fn.name,
+                    "target": ic,
+                    "type": "CALLS_INTERNAL",
+                    "description": f"Function `{fn.name}` invokes internal routine `{ic}`."
+                })
+
+        self.contract_relationships[contract_name] = rels
 
     def _parse_statements(self, code_block: str) -> List[Statement]:
         statements = []
         if not code_block or not code_block.strip():
             return statements
 
-        # Tokenize by semicolon or compound blocks (if / require / emit / assignments)
-        # Using a balanced-aware splitter for statements
         chunks = self._split_statements(code_block)
         for chunk in chunks:
             chunk = chunk.strip()
             if not chunk:
                 continue
 
-            # Classify statement
             if chunk.startswith("require(") or chunk.startswith("require ("):
-                # Extract require condition and error
                 inner = self._extract_parenthesized_content(chunk, "require")
                 parts = self._split_comma_args(inner)
                 cond = parts[0] if parts else inner
@@ -271,7 +408,6 @@ class SolidityExtractor:
 
             elif chunk.startswith("if (") or chunk.startswith("if("):
                 cond = self._extract_parenthesized_content(chunk, "if")
-                # find body
                 body_idx = chunk.find(")")
                 rest = chunk[body_idx + 1:].strip() if body_idx != -1 else ""
                 statements.append(Statement(chunk, "IF_BLOCK", {
@@ -410,28 +546,41 @@ class SolidityExtractor:
 
     def _is_access_control_condition(self, cond: str) -> bool:
         cond_lower = cond.lower()
-        # Access control guards authenticate the CALLER/SENDER or verify permission roles
-        # Should not match parameter validation checks like `newOwner != address(0)`
         if "msg.sender" in cond_lower or "tx.origin" in cond_lower:
             return True
         if "hasrole" in cond_lower or "isowner" in cond_lower or "auth" in cond_lower:
             return True
-        # Check for explicit equality with owner/admin variable
         if re.search(r'\b(sender|caller)\s*==\s*(owner|admin|_owner)', cond_lower):
             return True
         if re.search(r'\b(owner|admin|_owner)\s*==\s*(sender|caller)', cond_lower):
             return True
         return False
 
+    def get_contract_summary(self, contract_name: str) -> Dict[str, Any]:
+        """
+        Returns structural representation of contract, state variables, and relationships.
+        """
+        state_vars = [sv.to_dict() for sv in self.state_variables.get(contract_name, [])]
+        rels = self.contract_relationships.get(contract_name, [])
+        c_funcs = [
+            f.to_dict() for f in self.all_functions if f.contract_name == contract_name
+        ]
+        return {
+            "contract_name": contract_name,
+            "state_variables": state_vars,
+            "relationships": rels,
+            "functions": c_funcs,
+            "modifiers": [
+                {"name": name, "guarded_functions": data.get("guarded_functions", [])}
+                for name, data in self.modifiers.items()
+            ]
+        }
+
 
 def match_candidate_functions(
     candidates: List[FunctionDef],
     reference_entries: List[Dict[str, Any]]
 ) -> List[Tuple[FunctionDef, List[Dict[str, Any]]]]:
-    """
-    Match candidate target functions (TFunc) against reference entries (DBFunc)
-    based on function name, signature, or semantic equivalence.
-    """
     matches = []
     for cand in candidates:
         matched_refs = []
@@ -442,13 +591,10 @@ def match_candidate_functions(
             ref_sig = ref.get("signature", "").lower()
             ref_name = ref.get("function_name", "").lower()
 
-            # Exact signature match
             if cand_sig == ref_sig:
                 matched_refs.append(ref)
-            # Exact function name match (even if parameters differ slightly)
             elif cand_name == ref_name:
                 matched_refs.append(ref)
-            # Semantic equivalence heuristics
             elif ("withdraw" in cand_name and "withdraw" in ref_name) or \
                  ("ownership" in cand_name and "ownership" in ref_name) or \
                  ("token" in cand_name and "token" in ref_name and "transfer" in cand_name):

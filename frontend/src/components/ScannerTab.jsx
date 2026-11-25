@@ -11,7 +11,14 @@ import {
   Copy,
   Check,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Layers,
+  MapPin,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Sliders,
+  Scissors
 } from 'lucide-react';
 import GraphInspector from './GraphInspector';
 
@@ -28,6 +35,8 @@ export default function ScannerTab({
 }) {
   const [selectedFunctionForGraph, setSelectedFunctionForGraph] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [expandedTransformIndex, setExpandedTransformIndex] = useState(null);
+  const [showRelationships, setShowRelationships] = useState(true);
 
   const handleCopyCode = (text, index) => {
     navigator.clipboard.writeText(text);
@@ -49,6 +58,7 @@ export default function ScannerTab({
 
   const executive = scanResult?.executive_summary;
   const functionResults = scanResult?.function_results || [];
+  const contractStructures = scanResult?.contract_structures || {};
 
   return (
     <div className="space-y-6">
@@ -60,12 +70,11 @@ export default function ScannerTab({
               <span className="w-2.5 h-2.5 rounded-full bg-pink-500 animate-ping" />
               <h2 className="text-base font-extrabold text-white tracking-tight">ASTRO Static Analysis Engine</h2>
               <span className="text-[10px] px-2.5 py-0.5 rounded-full border border-pink-500/40 bg-pink-500/10 text-pink-300 font-mono font-bold">
-                Bipartite ACFG Similarity & Hungarian Matching (&alpha; = 0.80)
+                Two-Step Hungarian ACFG Matching (&alpha; = 0.80)
               </span>
             </div>
             <p className="text-xs text-purple-200/80 mt-1.5 max-w-3xl leading-relaxed">
-              Detects omitted access control guards by comparing target control flow graphs against
-              audited reference contracts with candidate guard patching.
+              Compares target contract Attribute Control Flow Graphs against both <strong>Audited Safe Templates</strong> and <strong>Known Vulnerable Patterns</strong> to pinpoint omitted access control guards and candidate patch locations.
             </p>
           </div>
 
@@ -97,11 +106,11 @@ export default function ScannerTab({
         {/* 5-Step Pipeline Visualizer */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-5 pt-4 border-t border-purple-900/50 text-xs font-mono">
           {[
-            { num: '01', title: 'Solidity AST Extraction' },
-            { num: '02', title: 'Modifier Inlining' },
+            { num: '01', title: 'Solidity AST & Relationships' },
+            { num: '02', title: 'Modifier & Call Inlining' },
             { num: '03', title: 'ACFG & IFNG Building' },
-            { num: '04', title: 'Hungarian Sim & Patch' },
-            { num: '05', title: 'Vote Aggregation' },
+            { num: '04', title: 'Hungarian Matching & Patch' },
+            { num: '05', title: 'Dual DB Comparison & Voting' },
           ].map((st, i) => (
             <div
               key={i}
@@ -122,7 +131,6 @@ export default function ScannerTab({
 
       {/* Editor & Upload Controls */}
       <div className="bg-[#120726] border border-purple-800/40 rounded-2xl overflow-hidden shadow-xl">
-        {/* Editor Header */}
         <div className="flex flex-wrap items-center justify-between px-5 py-3 border-b border-purple-900/50 bg-[#0e0520]">
           <div className="flex items-center space-x-2.5">
             <FileCode className="w-4 h-4 text-pink-400" />
@@ -190,6 +198,77 @@ export default function ScannerTab({
         </div>
       </div>
 
+      {/* Contract Structural & Relationship Inspector */}
+      {scanResult && Object.keys(contractStructures).length > 0 && (
+        <div className="bg-[#100624] border border-purple-900/50 rounded-2xl p-5 shadow-lg">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-purple-900/50">
+            <div className="flex items-center space-x-2">
+              <Layers className="w-4 h-4 text-pink-400" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                Contract Relationship & Structural Model
+              </h3>
+            </div>
+            <button
+              onClick={() => setShowRelationships(!showRelationships)}
+              className="text-xs text-purple-300 hover:text-white flex items-center space-x-1"
+            >
+              <span>{showRelationships ? 'Hide Details' : 'Show Details'}</span>
+              {showRelationships ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {showRelationships && (
+            <div className="space-y-4 text-xs">
+              {Object.entries(contractStructures).map(([cName, cStruct]) => (
+                <div key={cName} className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-bold text-white text-sm">Contract: {cName}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-800">
+                      {cStruct.state_variables?.length || 0} State Variables
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-950/60 text-pink-300 border border-pink-800/60">
+                      {cStruct.modifiers?.length || 0} Modifiers
+                    </span>
+                  </div>
+
+                  {/* State Variables Pill Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {cStruct.state_variables?.map((sv, idx) => (
+                      <div key={idx} className="p-2.5 rounded-xl bg-[#090314] border border-purple-900/60 text-[11px] font-mono">
+                        <div className="flex items-center justify-between text-purple-200">
+                          <span className="text-purple-400 text-[10px]">{sv.type}</span>
+                          <span className="font-bold text-white">{sv.name}</span>
+                        </div>
+                        {sv.written_by?.length > 0 && (
+                          <div className="mt-1 text-[10px] text-pink-400">
+                            Mutated by: {sv.written_by.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Structural Relationships List */}
+                  {cStruct.relationships?.length > 0 && (
+                    <div className="p-3 rounded-xl bg-[#0a0316] border border-purple-900/40 text-[11px] font-mono space-y-1">
+                      <span className="text-purple-400 font-bold block mb-1">Functional & Structural Edges:</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                        {cStruct.relationships.map((rel, rIdx) => (
+                          <div key={rIdx} className="flex items-center space-x-1.5 text-purple-200 truncate">
+                            <span className="text-pink-400 font-bold">[{rel.type}]</span>
+                            <span>{rel.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Executive Risk Dashboard (Results) */}
       {scanResult && executive && (
         <div className="space-y-6 pt-1">
@@ -201,7 +280,6 @@ export default function ScannerTab({
             }`}
           >
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              {/* Verdict Indicator */}
               <div className="flex items-start space-x-4">
                 <div
                   className={`p-3.5 rounded-2xl border ${
@@ -278,16 +356,22 @@ export default function ScannerTab({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold uppercase tracking-wider text-purple-300 font-mono">
-                Candidate Functions Analyzed ({functionResults.length})
+                Functions Analyzed & Localized ({functionResults.length})
               </h4>
               <span className="text-xs text-purple-400/80">
-                Target functions matched against reference corpus
+                Evaluated against Audited Safe Templates & Known Vulnerable Patterns
               </span>
             </div>
 
             {functionResults.map((fn, index) => {
-              const bestRef = fn.best_reference;
+              const auditedRef = fn.matched_audited_ref || fn.best_reference;
+              const vulnPat = fn.matched_vulnerable_pattern;
+              const loc = fn.vulnerability_localization || {};
+              const remed = fn.secure_remediation || fn.remediation;
+              const pruning = fn.pruning_summary || {};
+              const norm = fn.normalization_summary || {};
               const isVuln = fn.verdict === 'VULNERABLE';
+              const isTransformExpanded = expandedTransformIndex === index;
 
               return (
                 <div
@@ -326,14 +410,20 @@ export default function ScannerTab({
                             State Modifying
                           </span>
                         </div>
-                        <span className="text-xs text-purple-300/80">
-                          Contract: <strong className="text-white">{fn.contract_name}</strong>
+                        <div className="flex items-center space-x-3 mt-1 text-xs text-purple-300/80">
+                          <span>Contract: <strong className="text-white">{fn.contract_name}</strong></span>
+                          {loc.start_line && (
+                            <span className="flex items-center space-x-1 text-pink-400 font-mono">
+                              <MapPin className="w-3 h-3" />
+                              <span>Lines {loc.start_line}–{loc.end_line}</span>
+                            </span>
+                          )}
                           {fn.modifiers.length > 0 && (
-                            <span className="ml-2 text-pink-400 font-mono font-semibold">
+                            <span className="text-purple-300 font-mono">
                               [modifiers: {fn.modifiers.join(', ')}]
                             </span>
                           )}
-                        </span>
+                        </div>
                       </div>
                     </div>
 
@@ -345,7 +435,7 @@ export default function ScannerTab({
                             : 'bg-purple-500/20 text-purple-200 border-purple-500/40'
                         }`}
                       >
-                        {isVuln ? '⚠️ Missing Guard (+1)' : '🛡️ Protected (-1)'}
+                        {isVuln ? `⚠️ ${fn.severity_classification || 'Critical'} (+1)` : '🛡️ Protected (-1)'}
                       </span>
 
                       <button
@@ -358,138 +448,209 @@ export default function ScannerTab({
                     </div>
                   </div>
 
-                  {/* Similarity Metrics & ASTRO Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-1">
-                    {/* Sim Orig vs Patch */}
+                  {/* Dual Reference Comparison: Audited Template + Vulnerable Pattern */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-1">
+                    {/* A. Audited Safe Reference Comparison */}
                     <div className="p-3.5 rounded-xl bg-[#0c051a] border border-purple-900/60 space-y-2">
-                      <span className="text-[10px] font-mono text-purple-400 uppercase block font-bold">
-                        ASTRO Two-Step Graph Similarity
-                      </span>
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs font-semibold">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-purple-400 uppercase font-bold block">
+                          Audited Secure Template Match
+                        </span>
+                        <span className="text-[10px] px-2 py-0.2 rounded-full bg-purple-950 border border-purple-800 text-purple-300 font-mono">
+                          {auditedRef?.contract_name}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex justify-between">
                           <span className="text-purple-300">Original Sim (Sim_orig):</span>
-                          <span className="font-mono text-white">
-                            {(bestRef?.sim_orig * 100).toFixed(1)}%
+                          <span className="font-mono text-white font-bold">
+                            {((auditedRef?.sim_orig || 0) * 100).toFixed(1)}%
                           </span>
                         </div>
-                        <div className="w-full h-2 bg-purple-950 rounded-full overflow-hidden">
+                        <div className="w-full h-1.5 bg-purple-950 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-purple-500 rounded-full"
-                            style={{ width: `${Math.min(100, (bestRef?.sim_orig || 0) * 100)}%` }}
+                            style={{ width: `${Math.min(100, (auditedRef?.sim_orig || 0) * 100)}%` }}
                           />
                         </div>
 
-                        <div className="flex justify-between text-xs font-semibold pt-1">
+                        <div className="flex justify-between pt-1">
                           <span className="text-purple-300">Patched Sim (Sim_patch):</span>
                           <span className="font-mono font-bold text-pink-400">
-                            {(bestRef?.sim_patch * 100).toFixed(1)}%
+                            {((auditedRef?.sim_patch || 0) * 100).toFixed(1)}%
                           </span>
                         </div>
-                        <div className="w-full h-2 bg-purple-950 rounded-full overflow-hidden">
+                        <div className="w-full h-1.5 bg-purple-950 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
-                            style={{ width: `${Math.min(100, (bestRef?.sim_patch || 0) * 100)}%` }}
+                            style={{ width: `${Math.min(100, (auditedRef?.sim_patch || 0) * 100)}%` }}
                           />
                         </div>
 
                         <div className="flex items-center justify-between text-[11px] pt-1 text-pink-400 font-mono font-bold">
-                          <span>Similarity Gain (&Delta;Sim):</span>
-                          <span>+{(bestRef?.delta_sim * 100).toFixed(1)}%</span>
+                          <span>Similarity Delta (&Delta;Sim):</span>
+                          <span>+{((auditedRef?.delta_sim || 0) * 100).toFixed(1)}%</span>
                         </div>
+
+                        <p className="text-[11px] text-purple-300/80 italic pt-1">
+                          {auditedRef?.structural_comparison || auditedRef?.reason}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Reference Match Details */}
-                    <div className="p-3.5 rounded-xl bg-[#0c051a] border border-purple-900/60 space-y-1.5">
-                      <span className="text-[10px] font-mono text-purple-400 uppercase block font-bold">
-                        Audited Benchmark Match
-                      </span>
-                      <div className="text-xs space-y-1">
-                        <div>
-                          <span className="text-purple-400">Reference: </span>
-                          <span className="font-semibold text-white">
-                            {bestRef?.contract_name}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-purple-400">Audited Guard: </span>
-                          <span className="font-mono font-bold text-pink-400">
-                            {bestRef?.guard_type}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-purple-400">Voting Score: </span>
-                          <span className="font-mono font-bold text-purple-200">
-                            Sum = {fn.vote_sum} (Confidence: {(fn.confidence * 100).toFixed(0)}%)
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-purple-300/70 italic pt-1">{bestRef?.reason}</p>
-                      </div>
-                    </div>
-
-                    {/* Remediation Summary */}
+                    {/* B. Known Vulnerable Exploit Pattern Match */}
                     <div className="p-3.5 rounded-xl bg-[#0c051a] border border-purple-900/60 space-y-2">
-                      <span className="text-[10px] font-mono text-purple-400 uppercase block font-bold">
-                        Required Access Guard
-                      </span>
-                      {isVuln ? (
-                        <div className="space-y-2">
-                          <div className="text-xs text-pink-300 flex items-center space-x-1.5 font-bold">
-                            <AlertTriangle className="w-4 h-4 shrink-0 text-pink-400" />
-                            <span>Missing `{bestRef?.guard_type}` check</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-purple-400 uppercase font-bold block">
+                          Known Vulnerability Pattern
+                        </span>
+                        {vulnPat && (
+                          <span
+                            className={`text-[10px] px-2 py-0.2 rounded-full font-mono font-bold border ${
+                              vulnPat.is_direct_pattern_match
+                                ? 'bg-pink-500/20 text-pink-300 border-pink-500/40'
+                                : 'bg-purple-950 text-purple-300 border-purple-800'
+                            }`}
+                          >
+                            {vulnPat.is_direct_pattern_match ? 'Direct Exploit Match' : 'Corpus Match'}
+                          </span>
+                        )}
+                      </div>
+
+                      {vulnPat ? (
+                        <div className="text-xs space-y-1.5">
+                          <div className="flex justify-between">
+                            <span className="text-purple-300">Exploit Type:</span>
+                            <span className="font-bold text-pink-400">{vulnPat.vulnerability_type}</span>
                           </div>
-                          <div className="relative font-mono text-[10px] bg-black/60 p-2 rounded-lg border border-purple-800 text-purple-200 shadow-inner">
-                            <code>{bestRef?.guard_code}</code>
-                            <button
-                              onClick={() => handleCopyCode(bestRef?.guard_code, index)}
-                              className="absolute top-1.5 right-1.5 p-1 rounded bg-purple-900/80 hover:bg-purple-800 text-purple-300 hover:text-white"
-                              title="Copy code"
-                            >
-                              {copiedIndex === index ? (
-                                <Check className="w-3 h-3 text-pink-400" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
-                            </button>
+                          <div className="flex justify-between">
+                            <span className="text-purple-300">Topological Match:</span>
+                            <span className="font-mono font-bold text-white">
+                              {((vulnPat.sim_orig || 0) * 100).toFixed(1)}%
+                            </span>
                           </div>
+                          <div className="w-full h-1.5 bg-purple-950 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-pink-500 rounded-full"
+                              style={{ width: `${Math.min(100, (vulnPat.sim_orig || 0) * 100)}%` }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-purple-300/80 pt-1 leading-relaxed">
+                            {vulnPat.comparison_notes}
+                          </p>
                         </div>
                       ) : (
-                        <div className="text-xs text-purple-200 font-semibold flex items-center space-x-2 pt-2">
-                          <CheckCircle className="w-4 h-4 shrink-0 text-pink-400" />
-                          <span>Caller authorization guard verified intact.</span>
-                        </div>
+                        <p className="text-xs text-purple-400/80 italic pt-2">
+                          No direct vulnerable pattern match. Evaluated primarily via audited template patch simulation.
+                        </p>
                       )}
                     </div>
                   </div>
 
-                  {/* Remediation Patch Accordion */}
-                  {isVuln && fn.remediation && (
-                    <div className="mt-4 pt-3 border-t border-purple-900/50">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-pink-400 flex items-center space-x-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-                          <span>Recommended Solidity Patch</span>
-                        </span>
-                        <button
-                          onClick={() => handleCopyCode(fn.remediation.patch_code, `patch-${index}`)}
-                          className="flex items-center space-x-1 text-xs text-purple-300 hover:text-white transition-colors font-medium"
-                        >
-                          {copiedIndex === `patch-${index}` ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-pink-400" />
-                              <span className="text-pink-400 font-bold">Copied</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5" />
-                              <span>Copy Patch</span>
-                            </>
-                          )}
-                        </button>
+                  {/* Transformation Metadata Accordion (Pruning & IFNG Normalization) */}
+                  <div className="mt-3 pt-2">
+                    <button
+                      onClick={() => setExpandedTransformIndex(isTransformExpanded ? null : index)}
+                      className="text-xs text-purple-400 hover:text-pink-300 flex items-center space-x-1.5 transition-colors font-mono"
+                    >
+                      <Scissors className="w-3.5 h-3.5" />
+                      <span>
+                        Transformation Summary: {pruning.removed_emits?.length || 0} events pruned,{' '}
+                        {norm.ifng_node_groups?.length || 0} IFNG groups normalized
+                      </span>
+                      {isTransformExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+
+                    {isTransformExpanded && (
+                      <div className="mt-2 p-3 rounded-xl bg-[#090314] border border-purple-900/50 text-[11px] font-mono space-y-2">
+                        {pruning.removed_emits?.length > 0 && (
+                          <div>
+                            <span className="text-purple-400 font-bold block">Pruned Event Emissions (Noise Removal):</span>
+                            <div className="space-y-0.5 text-purple-300">
+                              {pruning.removed_emits.map((em, eIdx) => (
+                                <div key={eIdx}>- {em}</div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {norm.ifng_node_groups?.length > 0 && (
+                          <div className="pt-1">
+                            <span className="text-purple-400 font-bold block">Normalized If-Form Node Groups (IFNG):</span>
+                            <div className="space-y-1 text-purple-300">
+                              {norm.ifng_node_groups.map((ifng, iIdx) => (
+                                <div key={iIdx} className="bg-purple-950/40 p-1.5 rounded border border-purple-900/60">
+                                  <span className="text-pink-400 font-bold">IF ({ifng.condition})</span>
+                                  <span className="text-slate-400"> &rarr; REVERT (Node #{ifng.revert_node_id}) / ENDIF (Node #{ifng.endif_node_id})</span>
+                                  {ifng.is_guard && <span className="ml-2 text-[9px] px-1 rounded bg-pink-500/20 text-pink-300">GUARD</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <pre className="font-mono text-xs bg-black/80 p-3.5 rounded-xl border border-purple-900/80 text-pink-200 overflow-x-auto shadow-inner">
-                        {fn.remediation.patch_code}
-                      </pre>
+                    )}
+                  </div>
+
+                  {/* Vulnerability Localization & Remediation Patch */}
+                  {isVuln && remed && (
+                    <div className="mt-4 pt-3 border-t border-purple-900/50 space-y-3">
+                      {/* Localization bar */}
+                      <div className="p-2.5 rounded-xl bg-pink-950/30 border border-pink-500/30 flex items-center justify-between text-xs font-mono">
+                        <div className="flex items-center space-x-2 text-pink-300">
+                          <MapPin className="w-4 h-4 text-pink-400 shrink-0" />
+                          <span>
+                            Vulnerability Location: <strong>{fn.function_name}</strong> (Lines {loc.start_line}–{loc.end_line}) &middot; {loc.missing_guard_location}
+                          </span>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-pink-500/20 text-pink-200 border border-pink-500/40 font-bold uppercase">
+                          {fn.severity_classification || 'Critical'}
+                        </span>
+                      </div>
+
+                      {/* Actionable Steps */}
+                      {remed.actionable_steps?.length > 0 && (
+                        <div className="p-3 rounded-xl bg-[#090314] border border-purple-900/50 text-xs space-y-1">
+                          <span className="text-purple-400 font-bold font-mono block">Actionable Security Recommendations:</span>
+                          <ul className="space-y-1 text-purple-200">
+                            {remed.actionable_steps.map((st, sIdx) => (
+                              <li key={sIdx} className="flex items-start space-x-2">
+                                <span className="text-pink-400">&bull;</span>
+                                <span>{st}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Code Patch */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-pink-400 flex items-center space-x-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+                            <span>Remediation Code Patch</span>
+                          </span>
+                          <button
+                            onClick={() => handleCopyCode(remed.patch_code, `patch-${index}`)}
+                            className="flex items-center space-x-1 text-xs text-purple-300 hover:text-white transition-colors font-medium font-mono"
+                          >
+                            {copiedIndex === `patch-${index}` ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-pink-400" />
+                                <span className="text-pink-400 font-bold">Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copy Patch</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <pre className="font-mono text-xs bg-black/80 p-3.5 rounded-xl border border-purple-900/80 text-pink-200 overflow-x-auto shadow-inner">
+                          {remed.patch_code}
+                        </pre>
+                      </div>
                     </div>
                   )}
                 </div>

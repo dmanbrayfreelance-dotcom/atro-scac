@@ -5,19 +5,26 @@ import {
   ShieldCheck,
   ShieldAlert,
   Sparkles,
-  Info
+  Info,
+  Scissors,
+  CheckCircle2,
+  MapPin
 } from 'lucide-react';
 
 export default function GraphInspector({ functionResult, onClose }) {
-  const [viewMode, setViewMode] = useState('comparison'); // 'comparison', 'bipartite_mapping', 'patched'
+  const [viewMode, setViewMode] = useState('comparison'); // 'comparison', 'patched', 'vulnerable_pattern', 'bipartite_mapping'
   const [selectedNode, setSelectedNode] = useState(null);
 
   if (!functionResult) return null;
 
   const targetACFG = functionResult.acfg || { nodes: [], edges: [] };
   const patchedACFG = functionResult.patched_acfg || targetACFG;
-  const bestRef = functionResult.best_reference;
-  const nodeMapping = bestRef?.node_mapping || [];
+  const auditedRef = functionResult.matched_audited_ref || functionResult.best_reference;
+  const vulnPat = functionResult.matched_vulnerable_pattern;
+  const loc = functionResult.vulnerability_localization || {};
+  const pruning = functionResult.pruning_summary || targetACFG.pruning_summary || {};
+  const norm = functionResult.normalization_summary || targetACFG.normalization_summary || {};
+  const nodeMapping = auditedRef?.node_mapping || [];
 
   const getNodeStyle = (type, isGuard) => {
     if (isGuard) {
@@ -43,7 +50,7 @@ export default function GraphInspector({ functionResult, onClose }) {
     }
   };
 
-  const renderGraphColumn = (title, graph, isPatched = false, isReference = false) => {
+  const renderGraphColumn = (title, graph, isPatched = false, isReference = false, tag = null) => {
     const nodes = graph?.nodes || [];
     const edges = graph?.edges || [];
 
@@ -57,9 +64,9 @@ export default function GraphInspector({ functionResult, onClose }) {
                 + IFNG GUARD
               </span>
             )}
-            {isReference && (
+            {tag && (
               <span className="text-[9px] px-2 py-0.5 rounded-full border border-purple-600/60 bg-purple-950 text-purple-200 font-mono font-bold">
-                Audited Safe
+                {tag}
               </span>
             )}
           </div>
@@ -69,7 +76,7 @@ export default function GraphInspector({ functionResult, onClose }) {
         </div>
 
         {/* Nodes Flow */}
-        <div className="space-y-2.5 overflow-y-auto max-h-[480px] pr-2">
+        <div className="space-y-2.5 overflow-y-auto max-h-[440px] pr-2">
           {nodes.map((node) => {
             const isSelected = selectedNode?.id === node.id && selectedNode?.isRef === isReference;
             return (
@@ -111,7 +118,6 @@ export default function GraphInspector({ functionResult, onClose }) {
                 <div className="font-mono text-[11px] break-all bg-black/60 p-2 rounded-lg text-purple-100 border border-purple-950 shadow-inner">
                   {node.code}
                 </div>
-                {/* Outgoing Edge indicator */}
                 {edges.filter(([u]) => u === node.id).length > 0 && (
                   <div className="mt-1.5 flex items-center space-x-1 text-[10px] text-purple-400">
                     <ArrowRight className="w-3 h-3 text-pink-400" />
@@ -134,7 +140,7 @@ export default function GraphInspector({ functionResult, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-      <div className="bg-[#120726] border-2 border-purple-800/60 rounded-2xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-[#120726] border-2 border-purple-800/60 rounded-2xl w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-purple-900/50 bg-[#0c051a]">
           <div className="flex items-center space-x-3">
@@ -144,14 +150,20 @@ export default function GraphInspector({ functionResult, onClose }) {
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="font-black text-base text-white">
-                  ACFG Graph Inspector & Bipartite Alignment
+                  ACFG Graph Inspector & Structural Comparisons
                 </h3>
                 <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-pink-500/10 text-pink-300 border border-pink-500/30 font-bold">
                   {functionResult.signature}
                 </span>
+                {loc.start_line && (
+                  <span className="text-xs text-purple-300 flex items-center space-x-1">
+                    <MapPin className="w-3 h-3 text-pink-400" />
+                    <span>Lines {loc.start_line}–{loc.end_line}</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-purple-300/80">
-                Comparing target candidate Attribute Control Flow Graph against audited reference
+                Evaluating candidate Attribute Control Flow Graph transformations and bipartite node assignments
               </p>
             </div>
           </div>
@@ -166,7 +178,7 @@ export default function GraphInspector({ functionResult, onClose }) {
                   : 'text-purple-300 hover:text-white'
               }`}
             >
-              Side-by-Side (Target vs Ref)
+              Audited Safe Ref
             </button>
             <button
               onClick={() => setViewMode('patched')}
@@ -176,8 +188,20 @@ export default function GraphInspector({ functionResult, onClose }) {
                   : 'text-purple-300 hover:text-white'
               }`}
             >
-              Simulated Patched Test (G_T^patched)
+              Patch Test (G_T^patched)
             </button>
+            {vulnPat && (
+              <button
+                onClick={() => setViewMode('vulnerable_pattern')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'vulnerable_pattern'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-sm'
+                    : 'text-purple-300 hover:text-white'
+                }`}
+              >
+                Known Exploit Pattern
+              </button>
+            )}
             <button
               onClick={() => setViewMode('bipartite_mapping')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -186,7 +210,7 @@ export default function GraphInspector({ functionResult, onClose }) {
                   : 'text-purple-300 hover:text-white'
               }`}
             >
-              Hungarian Match Matrix
+              Hungarian Matrix
             </button>
           </div>
 
@@ -207,31 +231,31 @@ export default function GraphInspector({ functionResult, onClose }) {
             </div>
           </div>
           <div>
-            <span className="text-purple-400">Audited Reference:</span>
+            <span className="text-purple-400">Audited Safe Reference:</span>
             <div className="font-mono font-bold text-purple-200 truncate">
-              {bestRef?.contract_name} :: {bestRef?.function_name}
+              {auditedRef?.contract_name} :: {auditedRef?.function_name}
             </div>
           </div>
           <div>
-            <span className="text-purple-400">Hungarian Sim (Orig / Patch):</span>
+            <span className="text-purple-400">Hungarian Sim (Orig &rarr; Patch):</span>
             <div className="font-mono font-bold flex items-center space-x-1.5">
-              <span className="text-purple-300">{(bestRef?.sim_orig * 100).toFixed(1)}%</span>
-              <span className="text-purple-500">→</span>
+              <span className="text-purple-300">{((auditedRef?.sim_orig || 0) * 100).toFixed(1)}%</span>
+              <span className="text-purple-500">&rarr;</span>
               <span className="text-pink-400 font-black">
-                {(bestRef?.sim_patch * 100).toFixed(1)}%
+                {((auditedRef?.sim_patch || 0) * 100).toFixed(1)}%
               </span>
               <span className="text-[10px] text-pink-300 font-bold ml-1">
-                (+{(bestRef?.delta_sim * 100).toFixed(1)}%)
+                (+{((auditedRef?.delta_sim || 0) * 100).toFixed(1)}%)
               </span>
             </div>
           </div>
           <div>
-            <span className="text-purple-400">ASTRO Verdict:</span>
+            <span className="text-purple-400">Verdict & Severity:</span>
             <div className="flex items-center space-x-1 font-black">
               {functionResult.verdict === 'VULNERABLE' ? (
                 <span className="text-pink-400 flex items-center space-x-1 font-bold">
                   <ShieldAlert className="w-3.5 h-3.5 text-pink-400" />
-                  <span>VULNERABLE</span>
+                  <span>VULNERABLE ({functionResult.severity_classification || 'Critical'})</span>
                 </span>
               ) : (
                 <span className="text-purple-200 flex items-center space-x-1">
@@ -243,21 +267,43 @@ export default function GraphInspector({ functionResult, onClose }) {
           </div>
         </div>
 
+        {/* Transformation summary pills */}
+        <div className="px-6 py-2 bg-[#0a0316] border-b border-purple-900/40 text-[11px] font-mono flex flex-wrap items-center justify-between text-purple-300 gap-2">
+          <div className="flex items-center space-x-3">
+            <span className="flex items-center space-x-1 text-pink-400 font-bold">
+              <Scissors className="w-3.5 h-3.5" />
+              <span>Pruning:</span>
+            </span>
+            <span>{pruning.removed_emits?.length || 0} event emissions pruned</span>
+            <span>&middot;</span>
+            <span>{pruning.reconnected_edges || 0} control edges reconnected</span>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <span className="text-purple-400 font-bold">Normalization:</span>
+            <span>{norm.ifng_node_groups?.length || 0} If-Form Node Groups</span>
+            <span>&middot;</span>
+            <span>{norm.inlined_modifiers?.length || 0} modifiers inlined</span>
+          </div>
+        </div>
+
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto flex-1 bg-[#090314]">
           {viewMode === 'comparison' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {renderGraphColumn(
-                `Target Contract ACFG: ${functionResult.function_name}`,
+                `Target ACFG: ${functionResult.function_name}`,
                 targetACFG,
                 false,
-                false
+                false,
+                "Candidate"
               )}
               {renderGraphColumn(
-                `Audited Reference ACFG: ${bestRef?.contract_name || 'OpenZeppelin'}`,
-                bestRef?.acfg || targetACFG,
+                `Audited Safe ACFG: ${auditedRef?.contract_name || 'OpenZeppelin'}`,
+                auditedRef?.acfg || targetACFG,
                 false,
-                true
+                true,
+                "Audited Safe"
               )}
             </div>
           )}
@@ -267,25 +313,50 @@ export default function GraphInspector({ functionResult, onClose }) {
               <div className="p-3.5 rounded-xl bg-pink-950/40 border-2 border-pink-500/40 text-xs text-pink-200 flex items-start space-x-3 shadow-md shadow-pink-950/30">
                 <Sparkles className="w-4 h-4 text-pink-400 mt-0.5 shrink-0" />
                 <div>
-                  <span className="font-bold text-white">ASTRO Candidate Guard Insertion:</span> In this step,
-                  the similarity engine injects the synthetic candidate Access Control If-Form Node
-                  Group (<code className="text-pink-300 font-bold">IF (msg.sender == owner) → REVERT</code>)
-                  after the ENTRY node. Notice how the graph becomes structurally isomorphic to the
-                  audited reference!
+                  <span className="font-bold text-white">ASTRO Candidate Guard Insertion:</span> The similarity engine injects the synthetic candidate Access Control If-Form Node Group (<code className="text-pink-300 font-bold">IF (msg.sender == owner) &rarr; REVERT</code>) immediately after the ENTRY node, causing isomorphism with the audited reference to reach {((auditedRef?.sim_patch || 0) * 100).toFixed(1)}%.
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {renderGraphColumn(
-                  `Patched Graph G_T^patched (Sim: ${(bestRef?.sim_patch * 100).toFixed(1)}%)`,
+                  `Patched Graph G_T^patched (Sim: ${((auditedRef?.sim_patch || 0) * 100).toFixed(1)}%)`,
                   patchedACFG,
                   true,
-                  false
+                  false,
+                  "Patched"
                 )}
                 {renderGraphColumn(
-                  `Audited Reference ACFG (${bestRef?.contract_name})`,
-                  bestRef?.acfg || targetACFG,
+                  `Audited Reference ACFG (${auditedRef?.contract_name})`,
+                  auditedRef?.acfg || targetACFG,
                   false,
-                  true
+                  true,
+                  "Audited Safe"
+                )}
+              </div>
+            </div>
+          )}
+
+          {viewMode === 'vulnerable_pattern' && vulnPat && (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-xl bg-pink-950/40 border-2 border-pink-500/40 text-xs text-pink-200 flex items-start space-x-3 shadow-md shadow-pink-950/30">
+                <ShieldAlert className="w-4 h-4 text-pink-400 mt-0.5 shrink-0" />
+                <div>
+                  <span className="font-bold text-white">Known Exploit Pattern Alignment:</span> Comparing target against known exploit pattern '{vulnPat.vulnerability_type}'. Topological match score: {((vulnPat.sim_orig || 0) * 100).toFixed(1)}%.
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {renderGraphColumn(
+                  `Target Contract ACFG: ${functionResult.function_name}`,
+                  targetACFG,
+                  false,
+                  false,
+                  "Candidate"
+                )}
+                {renderGraphColumn(
+                  `Known Exploit Pattern: ${vulnPat.contract_name}`,
+                  vulnPat.acfg || targetACFG,
+                  false,
+                  true,
+                  "Known Vulnerable"
                 )}
               </div>
             </div>
@@ -298,7 +369,7 @@ export default function GraphInspector({ functionResult, onClose }) {
                   Hungarian Algorithm Optimal Node Assignment
                 </h4>
                 <span className="text-xs text-purple-400">
-                  Threshold &alpha; = 0.80 · Evaluated via scipy linear_sum_assignment
+                  Threshold &alpha; = 0.80 &middot; Evaluated via scipy linear_sum_assignment
                 </span>
               </div>
               <div className="overflow-x-auto">
@@ -356,7 +427,7 @@ export default function GraphInspector({ functionResult, onClose }) {
           <div className="flex items-center space-x-2">
             <Info className="w-4 h-4 text-pink-400" />
             <span>
-              Standardized If-Form Node Groups (IFNG: IF → REVERT / ENDIF).
+              ASTRO standardized If-Form Node Groups: IF &rarr; REVERT / ENDIF.
             </span>
           </div>
           <button

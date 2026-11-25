@@ -1,5 +1,2072 @@
 [
   {
+    "id": "scan-20261125132149663314",
+    "timestamp": "2026-11-25T13:21:49.663363Z",
+    "filename": "vuln_roi_transfer_ownership.sol",
+    "executive_summary": {
+      "verdict": "VULNERABLE",
+      "overall_risk_score": 94,
+      "overall_severity": "Critical",
+      "total_functions_analyzed": 3,
+      "vulnerable_functions_count": 3,
+      "safe_functions_count": 0,
+      "message": "ASTRO static analysis detected 3 vulnerable function(s) with missing access control guards."
+    },
+    "contract_structures": {
+      "HighYieldROIInvestment": {
+        "contract_name": "HighYieldROIInvestment",
+        "state_variables": [
+          {
+            "name": "owner",
+            "type": "address",
+            "visibility": "public",
+            "written_by": [
+              "transferOwnership"
+            ],
+            "guarded_by": []
+          },
+          {
+            "name": "totalInvested",
+            "type": "uint256",
+            "visibility": "public",
+            "written_by": [
+              "invest"
+            ],
+            "guarded_by": []
+          },
+          {
+            "name": "dailyRoiBasisPoints",
+            "type": "uint256",
+            "visibility": "public",
+            "written_by": [],
+            "guarded_by": []
+          },
+          {
+            "name": "deposits",
+            "type": "mapping",
+            "visibility": "public",
+            "written_by": [],
+            "guarded_by": []
+          },
+          {
+            "name": "lastClaimTime",
+            "type": "mapping",
+            "visibility": "public",
+            "written_by": [],
+            "guarded_by": []
+          },
+          {
+            "name": "newOwner",
+            "type": "address",
+            "visibility": "internal",
+            "written_by": [],
+            "guarded_by": []
+          },
+          {
+            "name": "elapsed",
+            "type": "uint256",
+            "visibility": "internal",
+            "written_by": [
+              "claimRewards"
+            ],
+            "guarded_by": []
+          },
+          {
+            "name": "reward",
+            "type": "uint256",
+            "visibility": "internal",
+            "written_by": [
+              "claimRewards"
+            ],
+            "guarded_by": []
+          }
+        ],
+        "relationships": [
+          {
+            "source": "invest",
+            "target": "totalInvested",
+            "type": "MODIFIES_STATE",
+            "description": "Function `invest` mutates state variable `totalInvested`."
+          },
+          {
+            "source": "transferOwnership",
+            "target": "owner",
+            "type": "MODIFIES_STATE",
+            "description": "Function `transferOwnership` mutates state variable `owner`."
+          },
+          {
+            "source": "claimRewards",
+            "target": "elapsed",
+            "type": "MODIFIES_STATE",
+            "description": "Function `claimRewards` mutates state variable `elapsed`."
+          },
+          {
+            "source": "claimRewards",
+            "target": "reward",
+            "type": "MODIFIES_STATE",
+            "description": "Function `claimRewards` mutates state variable `reward`."
+          },
+          {
+            "source": "claimRewards",
+            "target": ".transfer",
+            "type": "EXTERNAL_CALL",
+            "description": "Function `claimRewards` performs external call `.transfer(`."
+          }
+        ],
+        "functions": [
+          {
+            "name": "invest",
+            "signature": "invest()",
+            "contract_name": "HighYieldROIInvestment",
+            "visibility": "external",
+            "mutability": "payable",
+            "modifiers": [],
+            "params": [],
+            "is_externally_callable": true,
+            "is_state_modifying": true,
+            "start_line": 24,
+            "end_line": 30,
+            "body_raw": "\n        require(msg.value > 0, \"Zero deposit\");\n        deposits[msg.sender] += msg.value;\n        totalInvested += msg.value;\n        lastClaimTime[msg.sender] = block.timestamp;\n        emit Invested(msg.sender, msg.value);\n    ",
+            "state_writes": [
+              "totalInvested"
+            ],
+            "internal_calls": [],
+            "external_calls": [],
+            "statements": [
+              {
+                "raw_code": "require(msg.value > 0, \"Zero deposit\");",
+                "stmt_type": "REQUIRE",
+                "details": {
+                  "condition": "msg.value > 0",
+                  "error": "\"Zero deposit\"",
+                  "is_guard": false
+                }
+              },
+              {
+                "raw_code": "deposits[msg.sender] += msg.value;",
+                "stmt_type": "STATE_ASSIGN",
+                "details": {
+                  "assignment": "deposits[msg.sender] += msg.value;",
+                  "modifies_state": true
+                }
+              },
+              {
+                "raw_code": "totalInvested += msg.value;",
+                "stmt_type": "STATE_ASSIGN",
+                "details": {
+                  "assignment": "totalInvested += msg.value;",
+                  "modifies_state": true
+                }
+              },
+              {
+                "raw_code": "lastClaimTime[msg.sender] = block.timestamp;",
+                "stmt_type": "STATE_ASSIGN",
+                "details": {
+                  "assignment": "lastClaimTime[msg.sender] = block.timestamp;",
+                  "modifies_state": true
+                }
+              },
+              {
+                "raw_code": "emit Invested(msg.sender, msg.value);",
+                "stmt_type": "EMIT",
+                "details": {
+                  "event": "emit Invested(msg.sender, msg.value);"
+                }
+              }
+            ]
+          },
+          {
+            "name": "transferOwnership",
+            "signature": "transferOwnership(address)",
+            "contract_name": "HighYieldROIInvestment",
+            "visibility": "public",
+            "mutability": "nonpayable",
+            "modifiers": [],
+            "params": [
+              {
+                "type": "address",
+                "name": "newOwner"
+              }
+            ],
+            "is_externally_callable": true,
+            "is_state_modifying": true,
+            "start_line": 36,
+            "end_line": 40,
+            "body_raw": "\n        require(newOwner != address(0), \"Invalid new owner\");\n        owner = newOwner;\n        emit OwnershipTransferred(msg.sender, newOwner);\n    ",
+            "state_writes": [
+              "owner"
+            ],
+            "internal_calls": [],
+            "external_calls": [],
+            "statements": [
+              {
+                "raw_code": "require(newOwner != address(0), \"Invalid new owner\");",
+                "stmt_type": "REQUIRE",
+                "details": {
+                  "condition": "newOwner != address(0)",
+                  "error": "\"Invalid new owner\"",
+                  "is_guard": false
+                }
+              },
+              {
+                "raw_code": "owner = newOwner;",
+                "stmt_type": "STATE_ASSIGN",
+                "details": {
+                  "assignment": "owner = newOwner;",
+                  "modifies_state": true
+                }
+              },
+              {
+                "raw_code": "emit OwnershipTransferred(msg.sender, newOwner);",
+                "stmt_type": "EMIT",
+                "details": {
+                  "event": "emit OwnershipTransferred(msg.sender, newOwner);"
+                }
+              }
+            ]
+          },
+          {
+            "name": "claimRewards",
+            "signature": "claimRewards()",
+            "contract_name": "HighYieldROIInvestment",
+            "visibility": "external",
+            "mutability": "nonpayable",
+            "modifiers": [],
+            "params": [],
+            "is_externally_callable": true,
+            "is_state_modifying": true,
+            "start_line": 42,
+            "end_line": 48,
+            "body_raw": "\n        uint256 elapsed = block.timestamp - lastClaimTime[msg.sender];\n        require(elapsed > 0, \"Too early\");\n        uint256 reward = (deposits[msg.sender] * dailyRoiBasisPoints * elapsed) / (10000 * 1 days);\n        lastClaimTime[msg.sender] = block.timestamp;\n        payable(msg.sender).transfer(reward);\n    ",
+            "state_writes": [
+              "elapsed",
+              "reward"
+            ],
+            "internal_calls": [],
+            "external_calls": [
+              ".transfer("
+            ],
+            "statements": [
+              {
+                "raw_code": "uint256 elapsed = block.timestamp - lastClaimTime[msg.sender];",
+                "stmt_type": "STATE_ASSIGN",
+                "details": {
+                  "assignment": "uint256 elapsed = block.timestamp - lastClaimTime[msg.sender];",
+                  "modifies_state": true
+                }
+              },
+              {
+                "raw_code": "require(elapsed > 0, \"Too early\");",
+                "stmt_type": "REQUIRE",
+                "details": {
+                  "condition": "elapsed > 0",
+                  "error": "\"Too early\"",
+                  "is_guard": false
+                }
+              },
+              {
+                "raw_code": "uint256 reward = (deposits[msg.sender] * dailyRoiBasisPoints * elapsed) / (10000 * 1 days);",
+                "stmt_type": "STATE_ASSIGN",
+                "details": {
+                  "assignment": "uint256 reward = (deposits[msg.sender] * dailyRoiBasisPoints * elapsed) / (10000 * 1 days);",
+                  "modifies_state": true
+                }
+              },
+              {
+                "raw_code": "lastClaimTime[msg.sender] = block.timestamp;",
+                "stmt_type": "STATE_ASSIGN",
+                "details": {
+                  "assignment": "lastClaimTime[msg.sender] = block.timestamp;",
+                  "modifies_state": true
+                }
+              },
+              {
+                "raw_code": "payable(msg.sender).transfer(reward);",
+                "stmt_type": "CALL_EXTERNAL",
+                "details": {
+                  "call": "payable(msg.sender).transfer(reward);",
+                  "is_transfer": true,
+                  "modifies_state": true
+                }
+              }
+            ]
+          }
+        ],
+        "modifiers": []
+      }
+    },
+    "function_results": [
+      {
+        "contract_name": "HighYieldROIInvestment",
+        "function_name": "invest",
+        "signature": "invest()",
+        "visibility": "external",
+        "mutability": "payable",
+        "modifiers": [],
+        "verdict": "VULNERABLE",
+        "risk_score": 71,
+        "severity_classification": "Medium",
+        "severity": "Medium",
+        "confidence": 0.7839,
+        "vote_sum": 0,
+        "target_has_guard": false,
+        "acfg": {
+          "nodes": [
+            {
+              "id": 0,
+              "type": "ENTRY",
+              "code": "ENTRY invest()",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 1,
+              "type": "IF",
+              "code": "IF (msg.value > 0)",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 2,
+              "type": "REVERT",
+              "code": "REVERT \"Zero deposit\"",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 3,
+              "type": "ENDIF",
+              "code": "ENDIF",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 4,
+              "type": "STATE_ASSIGN",
+              "code": "deposits[msg.sender] += msg.value;",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 5,
+              "type": "STATE_ASSIGN",
+              "code": "totalInvested += msg.value;",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": true
+            },
+            {
+              "id": 6,
+              "type": "STATE_ASSIGN",
+              "code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 7,
+              "type": "RETURN",
+              "code": "RETURN",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            }
+          ],
+          "edges": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ],
+            [
+              5,
+              6
+            ],
+            [
+              6,
+              7
+            ]
+          ],
+          "pruning_summary": {
+            "removed_emits": [
+              "emit Invested(msg.sender, msg.value);"
+            ],
+            "removed_noise": [],
+            "reconnected_edges": 1
+          },
+          "normalization_summary": {
+            "inlined_modifiers": [],
+            "inlined_calls": [],
+            "ifng_node_groups": [
+              {
+                "original_statement": "require(msg.value > 0, \"Zero deposit\");",
+                "condition": "msg.value > 0",
+                "if_node_id": 1,
+                "revert_node_id": 2,
+                "endif_node_id": 3,
+                "is_guard": false
+              }
+            ]
+          },
+          "state_writes": [
+            "totalInvested"
+          ],
+          "external_calls": [],
+          "localization": {
+            "function_name": "invest",
+            "signature": "invest()",
+            "start_line": 24,
+            "end_line": 30
+          }
+        },
+        "patched_acfg": {
+          "nodes": [
+            {
+              "id": 0,
+              "type": "ENTRY",
+              "code": "ENTRY invest()",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 1,
+              "type": "IF",
+              "code": "IF (require(msg.sender == _owner, \"Ownable: caller is not the owner\");)",
+              "is_guard": true,
+              "reads_sender": true,
+              "modifies_state": false
+            },
+            {
+              "id": 2,
+              "type": "REVERT",
+              "code": "REVERT \"Unauthorized: caller is not authorized\"",
+              "is_guard": true,
+              "reads_sender": true,
+              "modifies_state": false
+            },
+            {
+              "id": 3,
+              "type": "ENDIF",
+              "code": "ENDIF",
+              "is_guard": true,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 4,
+              "type": "IF",
+              "code": "IF (msg.value > 0)",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 5,
+              "type": "REVERT",
+              "code": "REVERT \"Zero deposit\"",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 6,
+              "type": "ENDIF",
+              "code": "ENDIF",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 7,
+              "type": "STATE_ASSIGN",
+              "code": "deposits[msg.sender] += msg.value;",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 8,
+              "type": "STATE_ASSIGN",
+              "code": "totalInvested += msg.value;",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": true
+            },
+            {
+              "id": 9,
+              "type": "STATE_ASSIGN",
+              "code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 10,
+              "type": "RETURN",
+              "code": "RETURN",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            }
+          ],
+          "edges": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ],
+            [
+              4,
+              6
+            ],
+            [
+              6,
+              7
+            ],
+            [
+              7,
+              8
+            ],
+            [
+              8,
+              9
+            ],
+            [
+              9,
+              10
+            ]
+          ],
+          "pruning_summary": {
+            "removed_emits": [
+              "emit Invested(msg.sender, msg.value);"
+            ],
+            "removed_noise": [],
+            "reconnected_edges": 1
+          },
+          "normalization_summary": {
+            "inlined_modifiers": [],
+            "inlined_calls": [],
+            "ifng_node_groups": [
+              {
+                "original_statement": "require(msg.value > 0, \"Zero deposit\");",
+                "condition": "msg.value > 0",
+                "if_node_id": 1,
+                "revert_node_id": 2,
+                "endif_node_id": 3,
+                "is_guard": false
+              }
+            ]
+          }
+        },
+        "pruning_summary": {
+          "removed_emits": [
+            "emit Invested(msg.sender, msg.value);"
+          ],
+          "removed_noise": [],
+          "reconnected_edges": 1
+        },
+        "normalization_summary": {
+          "inlined_modifiers": [],
+          "inlined_calls": [],
+          "ifng_node_groups": [
+            {
+              "original_statement": "require(msg.value > 0, \"Zero deposit\");",
+              "condition": "msg.value > 0",
+              "if_node_id": 1,
+              "revert_node_id": 2,
+              "endif_node_id": 3,
+              "is_guard": false
+            }
+          ]
+        },
+        "vulnerability_localization": {
+          "contract_name": "HighYieldROIInvestment",
+          "function_name": "invest",
+          "signature": "invest()",
+          "start_line": 24,
+          "end_line": 30,
+          "missing_guard_location": "Function Entry Block (before state mutation)",
+          "state_writes": [
+            "totalInvested"
+          ],
+          "external_calls": []
+        },
+        "secure_remediation": {
+          "explanation": "The function `invest` is publicly callable and mutates sensitive state, but lacks caller authorization. In the audited reference template (`OpenZeppelin_Ownable`), this execution path is safeguarded by the `onlyOwner` access control guard. Without this check, any unauthenticated external caller can invoke this privileged routine.",
+          "patch_code": "// Recommended Security Remediation Patch:\n// Option 1: Attach standard access control modifier\nfunction invest() public onlyOwner {\n    // ... existing function implementation ...\n}\n\n// Option 2: Add inline caller authentication check\nrequire(msg.sender == _owner, \"Ownable: caller is not the owner\");\n",
+          "recommended_guard": "onlyOwner",
+          "actionable_steps": [
+            "Step 1: Import and inherit verified OpenZeppelin Ownable or AccessControl contracts.",
+            "Step 2: Add `onlyOwner` modifier or inline `require(msg.sender == _owner, \"Ownable: caller is not the owner\");` at the very beginning of `invest`.",
+            "Step 3: Verify all parameter zero-address validations precede state variable writes."
+          ]
+        },
+        "remediation": {
+          "explanation": "The function `invest` is publicly callable and mutates sensitive state, but lacks caller authorization. In the audited reference template (`OpenZeppelin_Ownable`), this execution path is safeguarded by the `onlyOwner` access control guard. Without this check, any unauthenticated external caller can invoke this privileged routine.",
+          "patch_code": "// Recommended Security Remediation Patch:\n// Option 1: Attach standard access control modifier\nfunction invest() public onlyOwner {\n    // ... existing function implementation ...\n}\n\n// Option 2: Add inline caller authentication check\nrequire(msg.sender == _owner, \"Ownable: caller is not the owner\");\n",
+          "recommended_guard": "onlyOwner",
+          "actionable_steps": [
+            "Step 1: Import and inherit verified OpenZeppelin Ownable or AccessControl contracts.",
+            "Step 2: Add `onlyOwner` modifier or inline `require(msg.sender == _owner, \"Ownable: caller is not the owner\");` at the very beginning of `invest`.",
+            "Step 3: Verify all parameter zero-address validations precede state variable writes."
+          ]
+        },
+        "matched_audited_ref": {
+          "ref_id": "ref-oz-transferOwnership-01",
+          "contract_name": "OpenZeppelin_Ownable",
+          "function_name": "transferOwnership",
+          "guard_type": "onlyOwner",
+          "guard_code": "require(msg.sender == _owner, \"Ownable: caller is not the owner\");",
+          "sim_orig": 0.632,
+          "sim_patch": 0.7463,
+          "delta_sim": 0.1143,
+          "reason": "Topology does not match audited template closely enough.",
+          "structural_comparison": "Candidate graph matches audited template at 63% original similarity. Upon candidate IFNG guard insertion, structural isomorphism reaches 74% (+11% gain), proving omitted access protection.",
+          "node_mapping": [
+            {
+              "target_node_id": 0,
+              "target_code": "ENTRY invest()",
+              "reference_node_id": 0,
+              "reference_code": "ENTRY transferOwnership(address newOwner)",
+              "similarity": 0.88
+            },
+            {
+              "target_node_id": 1,
+              "target_code": "IF (require(msg.sender == _owner, \"Ownable: caller is not the owner\");)",
+              "reference_node_id": 1,
+              "reference_code": "IF (msg.sender == _owner)",
+              "similarity": 0.905
+            },
+            {
+              "target_node_id": 2,
+              "target_code": "REVERT \"Unauthorized: caller is not authorized\"",
+              "reference_node_id": 2,
+              "reference_code": "REVERT \"Ownable: caller is not the owner\"",
+              "similarity": 0.792
+            },
+            {
+              "target_node_id": 3,
+              "target_code": "ENDIF",
+              "reference_node_id": 3,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 4,
+              "target_code": "IF (msg.value > 0)",
+              "reference_node_id": 4,
+              "reference_code": "IF (newOwner != address(0))",
+              "similarity": 0.9
+            },
+            {
+              "target_node_id": 5,
+              "target_code": "REVERT \"Zero deposit\"",
+              "reference_node_id": 5,
+              "reference_code": "REVERT \"Ownable: new owner is the zero address\"",
+              "similarity": 0.883
+            },
+            {
+              "target_node_id": 6,
+              "target_code": "ENDIF",
+              "reference_node_id": 6,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 7,
+              "target_code": "deposits[msg.sender] += msg.value;",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 8,
+              "target_code": "totalInvested += msg.value;",
+              "reference_node_id": 7,
+              "reference_code": "_owner = newOwner",
+              "similarity": 0.85
+            },
+            {
+              "target_node_id": 9,
+              "target_code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 10,
+              "target_code": "RETURN",
+              "reference_node_id": 8,
+              "reference_code": "RETURN",
+              "similarity": 1.0
+            }
+          ]
+        },
+        "matched_vulnerable_pattern": {
+          "ref_id": "vuln-pattern-unprotected-mint",
+          "category": "known_vulnerable",
+          "contract_name": "KnownVuln_InfiniteMinter",
+          "function_name": "mint",
+          "vulnerability_type": "Unprotected infinite token minting",
+          "severity": "Critical",
+          "sim_orig": 0.7839,
+          "is_direct_pattern_match": true,
+          "comparison_notes": "Strong topological alignment (78% similarity) with known exploit pattern: 'Unprotected infinite token minting'. Both lack caller authentication on state-mutating execution path.",
+          "node_mapping": [
+            {
+              "target_node_id": 0,
+              "target_code": "ENTRY invest()",
+              "reference_node_id": 0,
+              "reference_code": "ENTRY mint(address to, uint256 amount)",
+              "similarity": 0.871
+            },
+            {
+              "target_node_id": 1,
+              "target_code": "IF (msg.value > 0)",
+              "reference_node_id": 1,
+              "reference_code": "IF (to != address(0))",
+              "similarity": 0.9
+            },
+            {
+              "target_node_id": 2,
+              "target_code": "REVERT \"Zero deposit\"",
+              "reference_node_id": 2,
+              "reference_code": "REVERT \"Zero address\"",
+              "similarity": 0.925
+            },
+            {
+              "target_node_id": 3,
+              "target_code": "ENDIF",
+              "reference_node_id": 3,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 4,
+              "target_code": "deposits[msg.sender] += msg.value;",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 5,
+              "target_code": "totalInvested += msg.value;",
+              "reference_node_id": 5,
+              "reference_code": "balanceOf[to] += amount",
+              "similarity": 0.85
+            },
+            {
+              "target_node_id": 6,
+              "target_code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "reference_node_id": 4,
+              "reference_code": "totalSupply += amount",
+              "similarity": 0.725
+            },
+            {
+              "target_node_id": 7,
+              "target_code": "RETURN",
+              "reference_node_id": 6,
+              "reference_code": "RETURN",
+              "similarity": 1.0
+            }
+          ]
+        },
+        "best_reference": {
+          "ref_id": "ref-oz-transferOwnership-01",
+          "contract_name": "OpenZeppelin_Ownable",
+          "function_name": "transferOwnership",
+          "guard_type": "onlyOwner",
+          "guard_code": "require(msg.sender == _owner, \"Ownable: caller is not the owner\");",
+          "sim_orig": 0.632,
+          "sim_patch": 0.7463,
+          "delta_sim": 0.1143,
+          "reason": "Topology does not match audited template closely enough.",
+          "structural_comparison": "Candidate graph matches audited template at 63% original similarity. Upon candidate IFNG guard insertion, structural isomorphism reaches 74% (+11% gain), proving omitted access protection.",
+          "node_mapping": [
+            {
+              "target_node_id": 0,
+              "target_code": "ENTRY invest()",
+              "reference_node_id": 0,
+              "reference_code": "ENTRY transferOwnership(address newOwner)",
+              "similarity": 0.88
+            },
+            {
+              "target_node_id": 1,
+              "target_code": "IF (require(msg.sender == _owner, \"Ownable: caller is not the owner\");)",
+              "reference_node_id": 1,
+              "reference_code": "IF (msg.sender == _owner)",
+              "similarity": 0.905
+            },
+            {
+              "target_node_id": 2,
+              "target_code": "REVERT \"Unauthorized: caller is not authorized\"",
+              "reference_node_id": 2,
+              "reference_code": "REVERT \"Ownable: caller is not the owner\"",
+              "similarity": 0.792
+            },
+            {
+              "target_node_id": 3,
+              "target_code": "ENDIF",
+              "reference_node_id": 3,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 4,
+              "target_code": "IF (msg.value > 0)",
+              "reference_node_id": 4,
+              "reference_code": "IF (newOwner != address(0))",
+              "similarity": 0.9
+            },
+            {
+              "target_node_id": 5,
+              "target_code": "REVERT \"Zero deposit\"",
+              "reference_node_id": 5,
+              "reference_code": "REVERT \"Ownable: new owner is the zero address\"",
+              "similarity": 0.883
+            },
+            {
+              "target_node_id": 6,
+              "target_code": "ENDIF",
+              "reference_node_id": 6,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 7,
+              "target_code": "deposits[msg.sender] += msg.value;",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 8,
+              "target_code": "totalInvested += msg.value;",
+              "reference_node_id": 7,
+              "reference_code": "_owner = newOwner",
+              "similarity": 0.85
+            },
+            {
+              "target_node_id": 9,
+              "target_code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 10,
+              "target_code": "RETURN",
+              "reference_node_id": 8,
+              "reference_code": "RETURN",
+              "similarity": 1.0
+            }
+          ]
+        }
+      },
+      {
+        "contract_name": "HighYieldROIInvestment",
+        "function_name": "transferOwnership",
+        "signature": "transferOwnership(address)",
+        "visibility": "public",
+        "mutability": "nonpayable",
+        "modifiers": [],
+        "verdict": "VULNERABLE",
+        "risk_score": 94,
+        "severity_classification": "Critical",
+        "severity": "Critical",
+        "confidence": 0.9938,
+        "vote_sum": 1,
+        "target_has_guard": false,
+        "acfg": {
+          "nodes": [
+            {
+              "id": 0,
+              "type": "ENTRY",
+              "code": "ENTRY transferOwnership(address)",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 1,
+              "type": "IF",
+              "code": "IF (newOwner != address(0))",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 2,
+              "type": "REVERT",
+              "code": "REVERT \"Invalid new owner\"",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 3,
+              "type": "ENDIF",
+              "code": "ENDIF",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 4,
+              "type": "STATE_ASSIGN",
+              "code": "owner = newOwner;",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": true
+            },
+            {
+              "id": 5,
+              "type": "RETURN",
+              "code": "RETURN",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            }
+          ],
+          "edges": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "pruning_summary": {
+            "removed_emits": [
+              "emit OwnershipTransferred(msg.sender, newOwner);"
+            ],
+            "removed_noise": [],
+            "reconnected_edges": 1
+          },
+          "normalization_summary": {
+            "inlined_modifiers": [],
+            "inlined_calls": [],
+            "ifng_node_groups": [
+              {
+                "original_statement": "require(newOwner != address(0), \"Invalid new owner\");",
+                "condition": "newOwner != address(0)",
+                "if_node_id": 1,
+                "revert_node_id": 2,
+                "endif_node_id": 3,
+                "is_guard": false
+              }
+            ]
+          },
+          "state_writes": [
+            "owner"
+          ],
+          "external_calls": [],
+          "localization": {
+            "function_name": "transferOwnership",
+            "signature": "transferOwnership(address)",
+            "start_line": 36,
+            "end_line": 40
+          }
+        },
+        "patched_acfg": {
+          "nodes": [
+            {
+              "id": 0,
+              "type": "ENTRY",
+              "code": "ENTRY transferOwnership(address)",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 1,
+              "type": "IF",
+              "code": "IF (require(msg.sender == _owner, \"Ownable: caller is not the owner\");)",
+              "is_guard": true,
+              "reads_sender": true,
+              "modifies_state": false
+            },
+            {
+              "id": 2,
+              "type": "REVERT",
+              "code": "REVERT \"Unauthorized: caller is not authorized\"",
+              "is_guard": true,
+              "reads_sender": true,
+              "modifies_state": false
+            },
+            {
+              "id": 3,
+              "type": "ENDIF",
+              "code": "ENDIF",
+              "is_guard": true,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 4,
+              "type": "IF",
+              "code": "IF (newOwner != address(0))",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 5,
+              "type": "REVERT",
+              "code": "REVERT \"Invalid new owner\"",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 6,
+              "type": "ENDIF",
+              "code": "ENDIF",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 7,
+              "type": "STATE_ASSIGN",
+              "code": "owner = newOwner;",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": true
+            },
+            {
+              "id": 8,
+              "type": "RETURN",
+              "code": "RETURN",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            }
+          ],
+          "edges": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ],
+            [
+              4,
+              6
+            ],
+            [
+              6,
+              7
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "pruning_summary": {
+            "removed_emits": [
+              "emit OwnershipTransferred(msg.sender, newOwner);"
+            ],
+            "removed_noise": [],
+            "reconnected_edges": 1
+          },
+          "normalization_summary": {
+            "inlined_modifiers": [],
+            "inlined_calls": [],
+            "ifng_node_groups": [
+              {
+                "original_statement": "require(newOwner != address(0), \"Invalid new owner\");",
+                "condition": "newOwner != address(0)",
+                "if_node_id": 1,
+                "revert_node_id": 2,
+                "endif_node_id": 3,
+                "is_guard": false
+              }
+            ]
+          }
+        },
+        "pruning_summary": {
+          "removed_emits": [
+            "emit OwnershipTransferred(msg.sender, newOwner);"
+          ],
+          "removed_noise": [],
+          "reconnected_edges": 1
+        },
+        "normalization_summary": {
+          "inlined_modifiers": [],
+          "inlined_calls": [],
+          "ifng_node_groups": [
+            {
+              "original_statement": "require(newOwner != address(0), \"Invalid new owner\");",
+              "condition": "newOwner != address(0)",
+              "if_node_id": 1,
+              "revert_node_id": 2,
+              "endif_node_id": 3,
+              "is_guard": false
+            }
+          ]
+        },
+        "vulnerability_localization": {
+          "contract_name": "HighYieldROIInvestment",
+          "function_name": "transferOwnership",
+          "signature": "transferOwnership(address)",
+          "start_line": 36,
+          "end_line": 40,
+          "missing_guard_location": "Function Entry Block (before state mutation)",
+          "state_writes": [
+            "owner"
+          ],
+          "external_calls": []
+        },
+        "secure_remediation": {
+          "explanation": "The function `transferOwnership` is publicly callable and mutates sensitive state, but lacks caller authorization. In the audited reference template (`OpenZeppelin_Ownable`), this execution path is safeguarded by the `onlyOwner` access control guard. Without this check, any unauthenticated external caller can invoke this privileged routine.",
+          "patch_code": "// Recommended Security Remediation Patch:\n// Option 1: Attach standard access control modifier\nfunction transferOwnership(address) public onlyOwner {\n    // ... existing function implementation ...\n}\n\n// Option 2: Add inline caller authentication check\nrequire(msg.sender == _owner, \"Ownable: caller is not the owner\");\n",
+          "recommended_guard": "onlyOwner",
+          "actionable_steps": [
+            "Step 1: Import and inherit verified OpenZeppelin Ownable or AccessControl contracts.",
+            "Step 2: Add `onlyOwner` modifier or inline `require(msg.sender == _owner, \"Ownable: caller is not the owner\");` at the very beginning of `transferOwnership`.",
+            "Step 3: Verify all parameter zero-address validations precede state variable writes."
+          ]
+        },
+        "remediation": {
+          "explanation": "The function `transferOwnership` is publicly callable and mutates sensitive state, but lacks caller authorization. In the audited reference template (`OpenZeppelin_Ownable`), this execution path is safeguarded by the `onlyOwner` access control guard. Without this check, any unauthenticated external caller can invoke this privileged routine.",
+          "patch_code": "// Recommended Security Remediation Patch:\n// Option 1: Attach standard access control modifier\nfunction transferOwnership(address) public onlyOwner {\n    // ... existing function implementation ...\n}\n\n// Option 2: Add inline caller authentication check\nrequire(msg.sender == _owner, \"Ownable: caller is not the owner\");\n",
+          "recommended_guard": "onlyOwner",
+          "actionable_steps": [
+            "Step 1: Import and inherit verified OpenZeppelin Ownable or AccessControl contracts.",
+            "Step 2: Add `onlyOwner` modifier or inline `require(msg.sender == _owner, \"Ownable: caller is not the owner\");` at the very beginning of `transferOwnership`.",
+            "Step 3: Verify all parameter zero-address validations precede state variable writes."
+          ]
+        },
+        "matched_audited_ref": {
+          "ref_id": "ref-oz-transferOwnership-01",
+          "contract_name": "OpenZeppelin_Ownable",
+          "function_name": "transferOwnership",
+          "guard_type": "onlyOwner",
+          "guard_code": "require(msg.sender == _owner, \"Ownable: caller is not the owner\");",
+          "sim_orig": 0.6403,
+          "sim_patch": 0.9399,
+          "delta_sim": 0.2996,
+          "reason": "Control flow matches audited `transferOwnership` but lacks required `onlyOwner` guard.",
+          "structural_comparison": "Candidate graph matches audited template at 64% original similarity. Upon candidate IFNG guard insertion, structural isomorphism reaches 93% (+29% gain), proving omitted access protection.",
+          "node_mapping": [
+            {
+              "target_node_id": 0,
+              "target_code": "ENTRY transferOwnership(address)",
+              "reference_node_id": 0,
+              "reference_code": "ENTRY transferOwnership(address newOwner)",
+              "similarity": 0.962
+            },
+            {
+              "target_node_id": 1,
+              "target_code": "IF (require(msg.sender == _owner, \"Ownable: caller is not the owner\");)",
+              "reference_node_id": 1,
+              "reference_code": "IF (msg.sender == _owner)",
+              "similarity": 0.905
+            },
+            {
+              "target_node_id": 2,
+              "target_code": "REVERT \"Unauthorized: caller is not authorized\"",
+              "reference_node_id": 2,
+              "reference_code": "REVERT \"Ownable: caller is not the owner\"",
+              "similarity": 0.792
+            },
+            {
+              "target_node_id": 3,
+              "target_code": "ENDIF",
+              "reference_node_id": 3,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 4,
+              "target_code": "IF (newOwner != address(0))",
+              "reference_node_id": 4,
+              "reference_code": "IF (newOwner != address(0))",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 5,
+              "target_code": "REVERT \"Invalid new owner\"",
+              "reference_node_id": 5,
+              "reference_code": "REVERT \"Ownable: new owner is the zero address\"",
+              "similarity": 0.9
+            },
+            {
+              "target_node_id": 6,
+              "target_code": "ENDIF",
+              "reference_node_id": 6,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 7,
+              "target_code": "owner = newOwner;",
+              "reference_node_id": 7,
+              "reference_code": "_owner = newOwner",
+              "similarity": 0.9
+            },
+            {
+              "target_node_id": 8,
+              "target_code": "RETURN",
+              "reference_node_id": 8,
+              "reference_code": "RETURN",
+              "similarity": 1.0
+            }
+          ]
+        },
+        "matched_vulnerable_pattern": {
+          "ref_id": "vuln-pattern-roi-transferOwnership",
+          "category": "known_vulnerable",
+          "contract_name": "KnownVuln_HighYieldROI",
+          "function_name": "transferOwnership",
+          "vulnerability_type": "Missing onlyOwner Access Control",
+          "severity": "Critical",
+          "sim_orig": 0.9938,
+          "is_direct_pattern_match": true,
+          "comparison_notes": "Strong topological alignment (99% similarity) with known exploit pattern: 'Missing onlyOwner Access Control'. Both lack caller authentication on state-mutating execution path.",
+          "node_mapping": [
+            {
+              "target_node_id": 0,
+              "target_code": "ENTRY transferOwnership(address)",
+              "reference_node_id": 0,
+              "reference_code": "ENTRY transferOwnership(address newOwner)",
+              "similarity": 0.962
+            },
+            {
+              "target_node_id": 1,
+              "target_code": "IF (newOwner != address(0))",
+              "reference_node_id": 1,
+              "reference_code": "IF (newOwner != address(0))",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 2,
+              "target_code": "REVERT \"Invalid new owner\"",
+              "reference_node_id": 2,
+              "reference_code": "REVERT \"Invalid new owner\"",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 3,
+              "target_code": "ENDIF",
+              "reference_node_id": 3,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 4,
+              "target_code": "owner = newOwner;",
+              "reference_node_id": 4,
+              "reference_code": "owner = newOwner",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 5,
+              "target_code": "RETURN",
+              "reference_node_id": 5,
+              "reference_code": "RETURN",
+              "similarity": 1.0
+            }
+          ]
+        },
+        "best_reference": {
+          "ref_id": "ref-oz-transferOwnership-01",
+          "contract_name": "OpenZeppelin_Ownable",
+          "function_name": "transferOwnership",
+          "guard_type": "onlyOwner",
+          "guard_code": "require(msg.sender == _owner, \"Ownable: caller is not the owner\");",
+          "sim_orig": 0.6403,
+          "sim_patch": 0.9399,
+          "delta_sim": 0.2996,
+          "reason": "Control flow matches audited `transferOwnership` but lacks required `onlyOwner` guard.",
+          "structural_comparison": "Candidate graph matches audited template at 64% original similarity. Upon candidate IFNG guard insertion, structural isomorphism reaches 93% (+29% gain), proving omitted access protection.",
+          "node_mapping": [
+            {
+              "target_node_id": 0,
+              "target_code": "ENTRY transferOwnership(address)",
+              "reference_node_id": 0,
+              "reference_code": "ENTRY transferOwnership(address newOwner)",
+              "similarity": 0.962
+            },
+            {
+              "target_node_id": 1,
+              "target_code": "IF (require(msg.sender == _owner, \"Ownable: caller is not the owner\");)",
+              "reference_node_id": 1,
+              "reference_code": "IF (msg.sender == _owner)",
+              "similarity": 0.905
+            },
+            {
+              "target_node_id": 2,
+              "target_code": "REVERT \"Unauthorized: caller is not authorized\"",
+              "reference_node_id": 2,
+              "reference_code": "REVERT \"Ownable: caller is not the owner\"",
+              "similarity": 0.792
+            },
+            {
+              "target_node_id": 3,
+              "target_code": "ENDIF",
+              "reference_node_id": 3,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 4,
+              "target_code": "IF (newOwner != address(0))",
+              "reference_node_id": 4,
+              "reference_code": "IF (newOwner != address(0))",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 5,
+              "target_code": "REVERT \"Invalid new owner\"",
+              "reference_node_id": 5,
+              "reference_code": "REVERT \"Ownable: new owner is the zero address\"",
+              "similarity": 0.9
+            },
+            {
+              "target_node_id": 6,
+              "target_code": "ENDIF",
+              "reference_node_id": 6,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 7,
+              "target_code": "owner = newOwner;",
+              "reference_node_id": 7,
+              "reference_code": "_owner = newOwner",
+              "similarity": 0.9
+            },
+            {
+              "target_node_id": 8,
+              "target_code": "RETURN",
+              "reference_node_id": 8,
+              "reference_code": "RETURN",
+              "similarity": 1.0
+            }
+          ]
+        }
+      },
+      {
+        "contract_name": "HighYieldROIInvestment",
+        "function_name": "claimRewards",
+        "signature": "claimRewards()",
+        "visibility": "external",
+        "mutability": "nonpayable",
+        "modifiers": [],
+        "verdict": "VULNERABLE",
+        "risk_score": 70,
+        "severity_classification": "Medium",
+        "severity": "Medium",
+        "confidence": 0.7007,
+        "vote_sum": 0,
+        "target_has_guard": false,
+        "acfg": {
+          "nodes": [
+            {
+              "id": 0,
+              "type": "ENTRY",
+              "code": "ENTRY claimRewards()",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 1,
+              "type": "STATE_ASSIGN",
+              "code": "uint256 elapsed = block.timestamp - lastClaimTime[msg.sender];",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 2,
+              "type": "IF",
+              "code": "IF (elapsed > 0)",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 3,
+              "type": "REVERT",
+              "code": "REVERT \"Too early\"",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 4,
+              "type": "ENDIF",
+              "code": "ENDIF",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 5,
+              "type": "STATE_ASSIGN",
+              "code": "uint256 reward = (deposits[msg.sender] * dailyRoiBasisPoints * elapsed) / (10000 * 1 days);",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 6,
+              "type": "STATE_ASSIGN",
+              "code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 7,
+              "type": "CALL_EXTERNAL",
+              "code": "payable(msg.sender).transfer(reward);",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 8,
+              "type": "RETURN",
+              "code": "RETURN",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            }
+          ],
+          "edges": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              2,
+              4
+            ],
+            [
+              4,
+              5
+            ],
+            [
+              5,
+              6
+            ],
+            [
+              6,
+              7
+            ],
+            [
+              7,
+              8
+            ]
+          ],
+          "pruning_summary": {
+            "removed_emits": [],
+            "removed_noise": [],
+            "reconnected_edges": 0
+          },
+          "normalization_summary": {
+            "inlined_modifiers": [],
+            "inlined_calls": [],
+            "ifng_node_groups": [
+              {
+                "original_statement": "require(elapsed > 0, \"Too early\");",
+                "condition": "elapsed > 0",
+                "if_node_id": 2,
+                "revert_node_id": 3,
+                "endif_node_id": 4,
+                "is_guard": false
+              }
+            ]
+          },
+          "state_writes": [
+            "elapsed",
+            "reward"
+          ],
+          "external_calls": [
+            ".transfer("
+          ],
+          "localization": {
+            "function_name": "claimRewards",
+            "signature": "claimRewards()",
+            "start_line": 42,
+            "end_line": 48
+          }
+        },
+        "patched_acfg": {
+          "nodes": [
+            {
+              "id": 0,
+              "type": "ENTRY",
+              "code": "ENTRY claimRewards()",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 1,
+              "type": "IF",
+              "code": "IF (require(msg.sender == feeSetter, \"FORBIDDEN\");)",
+              "is_guard": true,
+              "reads_sender": true,
+              "modifies_state": false
+            },
+            {
+              "id": 2,
+              "type": "REVERT",
+              "code": "REVERT \"Unauthorized: caller is not authorized\"",
+              "is_guard": true,
+              "reads_sender": true,
+              "modifies_state": false
+            },
+            {
+              "id": 3,
+              "type": "ENDIF",
+              "code": "ENDIF",
+              "is_guard": true,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 4,
+              "type": "STATE_ASSIGN",
+              "code": "uint256 elapsed = block.timestamp - lastClaimTime[msg.sender];",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 5,
+              "type": "IF",
+              "code": "IF (elapsed > 0)",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 6,
+              "type": "REVERT",
+              "code": "REVERT \"Too early\"",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 7,
+              "type": "ENDIF",
+              "code": "ENDIF",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            },
+            {
+              "id": 8,
+              "type": "STATE_ASSIGN",
+              "code": "uint256 reward = (deposits[msg.sender] * dailyRoiBasisPoints * elapsed) / (10000 * 1 days);",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 9,
+              "type": "STATE_ASSIGN",
+              "code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 10,
+              "type": "CALL_EXTERNAL",
+              "code": "payable(msg.sender).transfer(reward);",
+              "is_guard": false,
+              "reads_sender": true,
+              "modifies_state": true
+            },
+            {
+              "id": 11,
+              "type": "RETURN",
+              "code": "RETURN",
+              "is_guard": false,
+              "reads_sender": false,
+              "modifies_state": false
+            }
+          ],
+          "edges": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ],
+            [
+              5,
+              6
+            ],
+            [
+              5,
+              7
+            ],
+            [
+              7,
+              8
+            ],
+            [
+              8,
+              9
+            ],
+            [
+              9,
+              10
+            ],
+            [
+              10,
+              11
+            ]
+          ],
+          "pruning_summary": {
+            "removed_emits": [],
+            "removed_noise": [],
+            "reconnected_edges": 0
+          },
+          "normalization_summary": {
+            "inlined_modifiers": [],
+            "inlined_calls": [],
+            "ifng_node_groups": [
+              {
+                "original_statement": "require(elapsed > 0, \"Too early\");",
+                "condition": "elapsed > 0",
+                "if_node_id": 2,
+                "revert_node_id": 3,
+                "endif_node_id": 4,
+                "is_guard": false
+              }
+            ]
+          }
+        },
+        "pruning_summary": {
+          "removed_emits": [],
+          "removed_noise": [],
+          "reconnected_edges": 0
+        },
+        "normalization_summary": {
+          "inlined_modifiers": [],
+          "inlined_calls": [],
+          "ifng_node_groups": [
+            {
+              "original_statement": "require(elapsed > 0, \"Too early\");",
+              "condition": "elapsed > 0",
+              "if_node_id": 2,
+              "revert_node_id": 3,
+              "endif_node_id": 4,
+              "is_guard": false
+            }
+          ]
+        },
+        "vulnerability_localization": {
+          "contract_name": "HighYieldROIInvestment",
+          "function_name": "claimRewards",
+          "signature": "claimRewards()",
+          "start_line": 42,
+          "end_line": 48,
+          "missing_guard_location": "Function Entry Block (before state mutation)",
+          "state_writes": [
+            "elapsed",
+            "reward"
+          ],
+          "external_calls": [
+            ".transfer("
+          ]
+        },
+        "secure_remediation": {
+          "explanation": "The function `claimRewards` is publicly callable and mutates sensitive state, but lacks caller authorization. In the audited reference template (`Uniswap_FeeController`), this execution path is safeguarded by the `onlyFeeToSetter` access control guard. Without this check, any unauthenticated external caller can invoke this privileged routine.",
+          "patch_code": "// Recommended Security Remediation Patch:\n// Option 1: Attach standard access control modifier\nfunction claimRewards() public onlyFeeToSetter {\n    // ... existing function implementation ...\n}\n\n// Option 2: Add inline caller authentication check\nrequire(msg.sender == feeSetter, \"FORBIDDEN\");\n",
+          "recommended_guard": "onlyFeeToSetter",
+          "actionable_steps": [
+            "Step 1: Import and inherit verified OpenZeppelin Ownable or AccessControl contracts.",
+            "Step 2: Add `onlyFeeToSetter` modifier or inline `require(msg.sender == feeSetter, \"FORBIDDEN\");` at the very beginning of `claimRewards`.",
+            "Step 3: Verify all parameter zero-address validations precede state variable writes."
+          ]
+        },
+        "remediation": {
+          "explanation": "The function `claimRewards` is publicly callable and mutates sensitive state, but lacks caller authorization. In the audited reference template (`Uniswap_FeeController`), this execution path is safeguarded by the `onlyFeeToSetter` access control guard. Without this check, any unauthenticated external caller can invoke this privileged routine.",
+          "patch_code": "// Recommended Security Remediation Patch:\n// Option 1: Attach standard access control modifier\nfunction claimRewards() public onlyFeeToSetter {\n    // ... existing function implementation ...\n}\n\n// Option 2: Add inline caller authentication check\nrequire(msg.sender == feeSetter, \"FORBIDDEN\");\n",
+          "recommended_guard": "onlyFeeToSetter",
+          "actionable_steps": [
+            "Step 1: Import and inherit verified OpenZeppelin Ownable or AccessControl contracts.",
+            "Step 2: Add `onlyFeeToSetter` modifier or inline `require(msg.sender == feeSetter, \"FORBIDDEN\");` at the very beginning of `claimRewards`.",
+            "Step 3: Verify all parameter zero-address validations precede state variable writes."
+          ]
+        },
+        "matched_audited_ref": {
+          "ref_id": "ref-defi-setfee-01",
+          "contract_name": "Uniswap_FeeController",
+          "function_name": "setFee",
+          "guard_type": "onlyFeeToSetter",
+          "guard_code": "require(msg.sender == feeSetter, \"FORBIDDEN\");",
+          "sim_orig": 0.6181,
+          "sim_patch": 0.6743,
+          "delta_sim": 0.0562,
+          "reason": "Topology does not match audited template closely enough.",
+          "structural_comparison": "Candidate graph matches audited template at 61% original similarity. Upon candidate IFNG guard insertion, structural isomorphism reaches 67% (+5% gain), proving omitted access protection.",
+          "node_mapping": [
+            {
+              "target_node_id": 0,
+              "target_code": "ENTRY claimRewards()",
+              "reference_node_id": 0,
+              "reference_code": "ENTRY setFee(uint256 _fee)",
+              "similarity": 0.88
+            },
+            {
+              "target_node_id": 1,
+              "target_code": "IF (require(msg.sender == feeSetter, \"FORBIDDEN\");)",
+              "reference_node_id": 1,
+              "reference_code": "IF (msg.sender == feeSetter)",
+              "similarity": 0.95
+            },
+            {
+              "target_node_id": 2,
+              "target_code": "REVERT \"Unauthorized: caller is not authorized\"",
+              "reference_node_id": 2,
+              "reference_code": "REVERT \"FORBIDDEN\"",
+              "similarity": 0.746
+            },
+            {
+              "target_node_id": 3,
+              "target_code": "ENDIF",
+              "reference_node_id": 3,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 4,
+              "target_code": "uint256 elapsed = block.timestamp - lastClaimTime[msg.sender];",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 5,
+              "target_code": "IF (elapsed > 0)",
+              "reference_node_id": 4,
+              "reference_code": "IF (_fee <= 1000)",
+              "similarity": 0.88
+            },
+            {
+              "target_node_id": 6,
+              "target_code": "REVERT \"Too early\"",
+              "reference_node_id": 5,
+              "reference_code": "REVERT \"Fee too high\"",
+              "similarity": 0.91
+            },
+            {
+              "target_node_id": 7,
+              "target_code": "ENDIF",
+              "reference_node_id": 6,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 8,
+              "target_code": "uint256 reward = (deposits[msg.sender] * dailyRoiBasisPoints * elapsed) / (10000 * 1 days);",
+              "reference_node_id": 7,
+              "reference_code": "protocolFee = _fee",
+              "similarity": 0.725
+            },
+            {
+              "target_node_id": 9,
+              "target_code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 10,
+              "target_code": "payable(msg.sender).transfer(reward);",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 11,
+              "target_code": "RETURN",
+              "reference_node_id": 8,
+              "reference_code": "RETURN",
+              "similarity": 1.0
+            }
+          ]
+        },
+        "matched_vulnerable_pattern": {
+          "ref_id": "vuln-pattern-unprotected-withdraw",
+          "category": "known_vulnerable",
+          "contract_name": "KnownVuln_TreasuryDrain",
+          "function_name": "withdraw",
+          "vulnerability_type": "Missing caller authorization on native balance transfer",
+          "severity": "Critical",
+          "sim_orig": 0.7007,
+          "is_direct_pattern_match": true,
+          "comparison_notes": "Strong topological alignment (70% similarity) with known exploit pattern: 'Missing caller authorization on native balance transfer'. Both lack caller authentication on state-mutating execution path.",
+          "node_mapping": [
+            {
+              "target_node_id": 0,
+              "target_code": "ENTRY claimRewards()",
+              "reference_node_id": 0,
+              "reference_code": "ENTRY withdraw(uint256 amount)",
+              "similarity": 0.88
+            },
+            {
+              "target_node_id": 1,
+              "target_code": "uint256 elapsed = block.timestamp - lastClaimTime[msg.sender];",
+              "reference_node_id": 4,
+              "reference_code": "totalReserve -= amount",
+              "similarity": 0.725
+            },
+            {
+              "target_node_id": 2,
+              "target_code": "IF (elapsed > 0)",
+              "reference_node_id": 1,
+              "reference_code": "IF (amount <= address(this).balance)",
+              "similarity": 0.871
+            },
+            {
+              "target_node_id": 3,
+              "target_code": "REVERT \"Too early\"",
+              "reference_node_id": 2,
+              "reference_code": "REVERT \"Insufficient balance\"",
+              "similarity": 0.88
+            },
+            {
+              "target_node_id": 4,
+              "target_code": "ENDIF",
+              "reference_node_id": 3,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 5,
+              "target_code": "uint256 reward = (deposits[msg.sender] * dailyRoiBasisPoints * elapsed) / (10000 * 1 days);",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 6,
+              "target_code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 7,
+              "target_code": "payable(msg.sender).transfer(reward);",
+              "reference_node_id": 5,
+              "reference_code": "payable(msg.sender).transfer(amount)",
+              "similarity": 0.95
+            },
+            {
+              "target_node_id": 8,
+              "target_code": "RETURN",
+              "reference_node_id": 6,
+              "reference_code": "RETURN",
+              "similarity": 1.0
+            }
+          ]
+        },
+        "best_reference": {
+          "ref_id": "ref-defi-setfee-01",
+          "contract_name": "Uniswap_FeeController",
+          "function_name": "setFee",
+          "guard_type": "onlyFeeToSetter",
+          "guard_code": "require(msg.sender == feeSetter, \"FORBIDDEN\");",
+          "sim_orig": 0.6181,
+          "sim_patch": 0.6743,
+          "delta_sim": 0.0562,
+          "reason": "Topology does not match audited template closely enough.",
+          "structural_comparison": "Candidate graph matches audited template at 61% original similarity. Upon candidate IFNG guard insertion, structural isomorphism reaches 67% (+5% gain), proving omitted access protection.",
+          "node_mapping": [
+            {
+              "target_node_id": 0,
+              "target_code": "ENTRY claimRewards()",
+              "reference_node_id": 0,
+              "reference_code": "ENTRY setFee(uint256 _fee)",
+              "similarity": 0.88
+            },
+            {
+              "target_node_id": 1,
+              "target_code": "IF (require(msg.sender == feeSetter, \"FORBIDDEN\");)",
+              "reference_node_id": 1,
+              "reference_code": "IF (msg.sender == feeSetter)",
+              "similarity": 0.95
+            },
+            {
+              "target_node_id": 2,
+              "target_code": "REVERT \"Unauthorized: caller is not authorized\"",
+              "reference_node_id": 2,
+              "reference_code": "REVERT \"FORBIDDEN\"",
+              "similarity": 0.746
+            },
+            {
+              "target_node_id": 3,
+              "target_code": "ENDIF",
+              "reference_node_id": 3,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 4,
+              "target_code": "uint256 elapsed = block.timestamp - lastClaimTime[msg.sender];",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 5,
+              "target_code": "IF (elapsed > 0)",
+              "reference_node_id": 4,
+              "reference_code": "IF (_fee <= 1000)",
+              "similarity": 0.88
+            },
+            {
+              "target_node_id": 6,
+              "target_code": "REVERT \"Too early\"",
+              "reference_node_id": 5,
+              "reference_code": "REVERT \"Fee too high\"",
+              "similarity": 0.91
+            },
+            {
+              "target_node_id": 7,
+              "target_code": "ENDIF",
+              "reference_node_id": 6,
+              "reference_code": "ENDIF",
+              "similarity": 1.0
+            },
+            {
+              "target_node_id": 8,
+              "target_code": "uint256 reward = (deposits[msg.sender] * dailyRoiBasisPoints * elapsed) / (10000 * 1 days);",
+              "reference_node_id": 7,
+              "reference_code": "protocolFee = _fee",
+              "similarity": 0.725
+            },
+            {
+              "target_node_id": 9,
+              "target_code": "lastClaimTime[msg.sender] = block.timestamp;",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 10,
+              "target_code": "payable(msg.sender).transfer(reward);",
+              "reference_node_id": null,
+              "reference_code": "UNMATCHED",
+              "similarity": 0.0
+            },
+            {
+              "target_node_id": 11,
+              "target_code": "RETURN",
+              "reference_node_id": 8,
+              "reference_code": "RETURN",
+              "similarity": 1.0
+            }
+          ]
+        }
+      }
+    ],
+    "contracts_detected": [
+      "HighYieldROIInvestment"
+    ],
+    "source_code_snippet": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\n/**\n * @title HighYieldROIInvestment\n * @dev VULNERABLE CONTRACT: The function `transferOwnership` is declared public\n * without any access control modifier (such as `onlyOwner`) or `msg.sender == owner` check.\n * Anyone can invoke this function to hijack ownership and claim protocol fees.\n */\ncontract HighYieldROIInvestment {\n    address public owner;\n    uint256 public totalInvested;\n    uint256 public dailyRoiBasisPoints = 150; // 1.5%..."
+  },
+  {
     "id": "scan-20261125123903242222",
     "timestamp": "2026-11-25T12:39:03.242280Z",
     "filename": "safe_ownable_vault.sol",

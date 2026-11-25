@@ -33,7 +33,7 @@ class ACFGBuilder:
     Builds Attribute Control Flow Graphs (ACFG) for Solidity functions.
     Handles modifier inlining, If-Form Node Group (IFNG) normalization,
     pruning of non-access-control noise (emits/logs) with edge reconnection,
-    and sequential BFS re-indexing.
+    sequential BFS re-indexing, and preserves comprehensive transformation metadata.
     """
 
     def __init__(self, modifiers_db: Dict[str, Dict[str, Any]] = None):
@@ -41,10 +41,22 @@ class ACFGBuilder:
 
     def build_acfg(self, func: FunctionDef) -> Dict[str, Any]:
         """
-        Constructs the ACFG for a given function definition.
+        Constructs the ACFG for a given function definition with transformation summaries.
         """
         G = nx.DiGraph()
         node_counter = 0
+
+        # Transformation tracking
+        pruning_summary = {
+            "removed_emits": [],
+            "removed_noise": [],
+            "reconnected_edges": 0
+        }
+        normalization_summary = {
+            "inlined_modifiers": list(func.modifiers),
+            "inlined_calls": list(func.internal_calls),
+            "ifng_node_groups": []
+        }
 
         # 1. Create ENTRY node
         entry_node = ACFGNode(
@@ -65,7 +77,7 @@ class ACFGBuilder:
         # 3. Process statements into CFG with IFNG normalization
         for stmt in inlined_statements:
             current_tail, node_counter = self._add_statement_to_graph(
-                G, stmt, current_tail, node_counter
+                G, stmt, current_tail, node_counter, normalization_summary
             )
 
         # 4. Add final RETURN node if not terminated
@@ -82,35 +94,40 @@ class ACFGBuilder:
         node_counter += 1
 
         # 5. Apply ASTRO Pruning Rules (remove emits & noise, reconnect control edges cleanly)
-        G = self._apply_pruning_rules(G)
+        G, pruning_summary = self._apply_pruning_rules(G, pruning_summary)
 
         # 6. Sequential BFS reordering
-        return self._reorder_graph_bfs(G, root_id=0)
+        graph_dict = self._reorder_graph_bfs(G, root_id=0)
+        graph_dict["pruning_summary"] = pruning_summary
+        graph_dict["normalization_summary"] = normalization_summary
+        graph_dict["state_writes"] = func.state_writes
+        graph_dict["external_calls"] = func.external_calls
+        graph_dict["localization"] = {
+            "function_name": func.name,
+            "signature": func.signature,
+            "start_line": func.start_line,
+            "end_line": func.end_line
+        }
+
+        return graph_dict
 
     def _inline_modifiers(self, func: FunctionDef) -> List[Statement]:
-        """
-        Inlines modifier checks into the function statement list,
-        replacing the `_` placeholder with the actual function statements.
-        """
         pre_statements = []
         post_statements = []
 
         for mod_call in func.modifiers:
-            # Extract modifier name and arguments
             mod_match = re.match(r'([a-zA-Z0-9_]+)(?:\((.*?)\))?', mod_call.strip())
             if not mod_match:
                 continue
             mod_name = mod_match.group(1)
             mod_args_raw = mod_match.group(2) or ""
 
-            # Check if defined in contract
             if mod_name in self.modifiers_db:
                 mod_def = self.modifiers_db[mod_name]
                 mod_body = mod_def.get("body", "")
                 mod_stmts = self._extract_modifier_stmts(mod_body, mod_name, mod_args_raw)
                 pre_statements.extend(mod_stmts)
             else:
-                # Standard well-known modifiers
                 if mod_name == "onlyOwner":
                     pre_statements.append(Statement(
                         "require(msg.sender == owner, \"Ownable: caller is not the owner\")",
@@ -173,11 +190,8 @@ class ACFGBuilder:
         return stmts
 
     def _add_statement_to_graph(self, G: nx.DiGraph, stmt: Statement,
-                                tail_id: int, counter: int) -> Tuple[int, int]:
-        """
-        Normalizes access checks into If-Form Node Groups (IFNG):
-        IF -> REVERT (fail) & IF -> ENDIF (pass)
-        """
+                                tail_id: int, counter: int,
+                                norm_summary: Dict[str, Any]) -> Tuple[int, int]:
         code = stmt.raw_code
         reads_sender = "msg.sender" in code or "tx.origin" in code
         modifies_state = stmt.details.get("modifies_state", False) or \
@@ -191,9 +205,13 @@ class ACFGBuilder:
             cond = stmt.details.get("condition", code)
             err = stmt.details.get("error", "Revert")
 
+            if_id = counter
+            revert_id = counter + 1
+            endif_id = counter + 2
+
             # IF node
             if_node = ACFGNode(
-                node_id=counter,
+                node_id=if_id,
                 node_type="IF",
                 code=f"IF ({cond})",
                 is_guard=is_guard,
@@ -202,11 +220,10 @@ class ACFGBuilder:
             )
             G.add_node(if_node.id, data=if_node)
             G.add_edge(tail_id, if_node.id)
-            counter += 1
 
-            # REVERT node (fail path)
+            # REVERT node
             revert_node = ACFGNode(
-                node_id=counter,
+                node_id=revert_id,
                 node_type="REVERT",
                 code=f"REVERT {err}".strip(),
                 is_guard=is_guard,
@@ -215,11 +232,10 @@ class ACFGBuilder:
             )
             G.add_node(revert_node.id, data=revert_node)
             G.add_edge(if_node.id, revert_node.id)
-            counter += 1
 
-            # ENDIF node (join / success path)
+            # ENDIF node
             endif_node = ACFGNode(
-                node_id=counter,
+                node_id=endif_id,
                 node_type="ENDIF",
                 code="ENDIF",
                 is_guard=is_guard,
@@ -228,19 +244,30 @@ class ACFGBuilder:
             )
             G.add_node(endif_node.id, data=endif_node)
             G.add_edge(if_node.id, endif_node.id)
-            counter += 1
 
-            return endif_node.id, counter
+            norm_summary["ifng_node_groups"].append({
+                "original_statement": code,
+                "condition": cond,
+                "if_node_id": if_id,
+                "revert_node_id": revert_id,
+                "endif_node_id": endif_id,
+                "is_guard": is_guard
+            })
+
+            return endif_node.id, counter + 3
 
         elif stmt.stmt_type == "IF_BLOCK":
             is_guard = stmt.details.get("is_guard", False)
             cond = stmt.details.get("condition", "cond")
             inner_body = stmt.details.get("inner_body", "")
 
-            # If inner body contains revert, normalize directly to IFNG
             if "revert" in inner_body.lower():
+                if_id = counter
+                revert_id = counter + 1
+                endif_id = counter + 2
+
                 if_node = ACFGNode(
-                    node_id=counter,
+                    node_id=if_id,
                     node_type="IF",
                     code=f"IF ({cond})",
                     is_guard=is_guard,
@@ -249,10 +276,9 @@ class ACFGBuilder:
                 )
                 G.add_node(if_node.id, data=if_node)
                 G.add_edge(tail_id, if_node.id)
-                counter += 1
 
                 revert_node = ACFGNode(
-                    node_id=counter,
+                    node_id=revert_id,
                     node_type="REVERT",
                     code="REVERT",
                     is_guard=is_guard,
@@ -261,10 +287,9 @@ class ACFGBuilder:
                 )
                 G.add_node(revert_node.id, data=revert_node)
                 G.add_edge(if_node.id, revert_node.id)
-                counter += 1
 
                 endif_node = ACFGNode(
-                    node_id=counter,
+                    node_id=endif_id,
                     node_type="ENDIF",
                     code="ENDIF",
                     is_guard=is_guard,
@@ -273,9 +298,17 @@ class ACFGBuilder:
                 )
                 G.add_node(endif_node.id, data=endif_node)
                 G.add_edge(if_node.id, endif_node.id)
-                counter += 1
 
-                return endif_node.id, counter
+                norm_summary["ifng_node_groups"].append({
+                    "original_statement": code,
+                    "condition": cond,
+                    "if_node_id": if_id,
+                    "revert_node_id": revert_id,
+                    "endif_node_id": endif_id,
+                    "is_guard": is_guard
+                })
+
+                return endif_node.id, counter + 3
             else:
                 generic_node = ACFGNode(
                     node_id=counter,
@@ -287,11 +320,9 @@ class ACFGBuilder:
                 )
                 G.add_node(generic_node.id, data=generic_node)
                 G.add_edge(tail_id, generic_node.id)
-                counter += 1
-                return generic_node.id, counter
+                return generic_node.id, counter + 1
 
         elif stmt.stmt_type == "EMIT":
-            # EMIT node - will be pruned in pruning step
             emit_node = ACFGNode(
                 node_id=counter,
                 node_type="EMIT",
@@ -302,8 +333,7 @@ class ACFGBuilder:
             )
             G.add_node(emit_node.id, data=emit_node)
             G.add_edge(tail_id, emit_node.id)
-            counter += 1
-            return emit_node.id, counter
+            return emit_node.id, counter + 1
 
         elif stmt.stmt_type == "CALL_EXTERNAL":
             call_node = ACFGNode(
@@ -316,8 +346,7 @@ class ACFGBuilder:
             )
             G.add_node(call_node.id, data=call_node)
             G.add_edge(tail_id, call_node.id)
-            counter += 1
-            return call_node.id, counter
+            return call_node.id, counter + 1
 
         elif stmt.stmt_type == "STATE_ASSIGN":
             assign_node = ACFGNode(
@@ -330,8 +359,7 @@ class ACFGBuilder:
             )
             G.add_node(assign_node.id, data=assign_node)
             G.add_edge(tail_id, assign_node.id)
-            counter += 1
-            return assign_node.id, counter
+            return assign_node.id, counter + 1
 
         elif stmt.stmt_type == "RETURN":
             ret_node = ACFGNode(
@@ -344,8 +372,7 @@ class ACFGBuilder:
             )
             G.add_node(ret_node.id, data=ret_node)
             G.add_edge(tail_id, ret_node.id)
-            counter += 1
-            return ret_node.id, counter
+            return ret_node.id, counter + 1
 
         else:
             expr_node = ACFGNode(
@@ -358,35 +385,29 @@ class ACFGBuilder:
             )
             G.add_node(expr_node.id, data=expr_node)
             G.add_edge(tail_id, expr_node.id)
-            counter += 1
-            return expr_node.id, counter
+            return expr_node.id, counter + 1
 
-    def _apply_pruning_rules(self, G: nx.DiGraph) -> nx.DiGraph:
-        """
-        Prunes event emissions (EMIT nodes) and non-access-control noise.
-        Re-connects predecessors directly to successors.
-        """
+    def _apply_pruning_rules(self, G: nx.DiGraph, pruning_summary: Dict[str, Any]) -> Tuple[nx.DiGraph, Dict[str, Any]]:
         nodes_to_prune = []
         for n, d in G.nodes(data=True):
             data: ACFGNode = d.get("data")
             if data and data.type == "EMIT":
-                nodes_to_prune.append(n)
+                nodes_to_prune.append((n, data.code))
 
-        for n in nodes_to_prune:
+        for n, code in nodes_to_prune:
             preds = list(G.predecessors(n))
             succs = list(G.successors(n))
             for p in preds:
                 for s in succs:
                     if p != s:
                         G.add_edge(p, s)
+                        pruning_summary["reconnected_edges"] += 1
             G.remove_node(n)
+            pruning_summary["removed_emits"].append(code)
 
-        return G
+        return G, pruning_summary
 
     def _reorder_graph_bfs(self, G: nx.DiGraph, root_id: int = 0) -> Dict[str, Any]:
-        """
-        Re-indexes nodes sequentially using Breadth-First Search (BFS) starting from root.
-        """
         if root_id not in G:
             root_id = list(G.nodes())[0] if G.nodes() else 0
 
@@ -403,7 +424,6 @@ class ACFGBuilder:
                     visited.add(neighbor)
                     queue.append(neighbor)
 
-        # Include any remaining disconnected nodes if any
         for n in G.nodes():
             if n not in visited:
                 bfs_order.append(n)
@@ -431,24 +451,13 @@ class ACFGBuilder:
 
     @staticmethod
     def patch_graph_with_guard(graph_dict: Dict[str, Any], guard_condition: str = "msg.sender == owner") -> Dict[str, Any]:
-        """
-        Inserts a synthetic candidate Access Control If-Form Node Group (IFNG)
-        right after the ENTRY node of the graph, simulating the patch test.
-        """
         orig_nodes = graph_dict.get("nodes", [])
         orig_edges = graph_dict.get("edges", [])
 
         if not orig_nodes:
             return graph_dict
 
-        # Construct new graph with IFNG guard inserted after ENTRY (node 0)
         entry_node = orig_nodes[0]
-        # Nodes:
-        # 0: ENTRY
-        # 1: IF (guard) [guard=True]
-        # 2: REVERT [guard=True]
-        # 3: ENDIF [guard=True]
-        # 4+: shifted orig nodes from index 1 onward (+3 to their indices)
         patched_nodes = [entry_node]
         patched_nodes.append({
             "id": 1,
@@ -481,15 +490,12 @@ class ACFGBuilder:
             new_node["id"] = node["id"] + shift
             patched_nodes.append(new_node)
 
-        # Edges
         patched_edges = [
-            [0, 1],  # ENTRY -> IF
-            [1, 2],  # IF -> REVERT
-            [1, 3]   # IF -> ENDIF
+            [0, 1],
+            [1, 2],
+            [1, 3]
         ]
 
-        # Shift original edges:
-        # Original edges from node 0 (ENTRY) to X now go from 3 (ENDIF) to X + shift
         for u, v in orig_edges:
             if u == 0:
                 patched_edges.append([3, v + shift])
@@ -498,5 +504,7 @@ class ACFGBuilder:
 
         return {
             "nodes": patched_nodes,
-            "edges": patched_edges
+            "edges": patched_edges,
+            "pruning_summary": graph_dict.get("pruning_summary", {}),
+            "normalization_summary": graph_dict.get("normalization_summary", {})
         }

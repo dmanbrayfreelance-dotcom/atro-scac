@@ -1,6 +1,7 @@
 [
   {
     "id": "ref-oz-transferOwnership-01",
+    "category": "audited_safe",
     "contract_name": "OpenZeppelin_Ownable",
     "function_name": "transferOwnership",
     "signature": "transferOwnership(address)",
@@ -30,6 +31,7 @@
   },
   {
     "id": "ref-solmate-transferOwnership-02",
+    "category": "audited_safe",
     "contract_name": "Solmate_Auth",
     "function_name": "transferOwnership",
     "signature": "transferOwnership(address)",
@@ -56,6 +58,7 @@
   },
   {
     "id": "ref-oz-withdraw-01",
+    "category": "audited_safe",
     "contract_name": "OpenZeppelin_PaymentSplitter",
     "function_name": "withdraw",
     "signature": "withdraw(uint256)",
@@ -85,6 +88,7 @@
   },
   {
     "id": "ref-safe-rescue-token-01",
+    "category": "audited_safe",
     "contract_name": "SafeTokenRescuer",
     "function_name": "transferAnyERC20Token",
     "signature": "transferAnyERC20Token(address,address,uint256)",
@@ -111,6 +115,7 @@
   },
   {
     "id": "ref-oz-mint-01",
+    "category": "audited_safe",
     "contract_name": "OpenZeppelin_ERC20PresetMinterPauser",
     "function_name": "mint",
     "signature": "mint(address,uint256)",
@@ -138,6 +143,7 @@
   },
   {
     "id": "ref-oz-burn-01",
+    "category": "audited_safe",
     "contract_name": "OpenZeppelin_ERC20Burnable",
     "function_name": "burn",
     "signature": "burn(uint256)",
@@ -165,6 +171,7 @@
   },
   {
     "id": "ref-oz-pause-01",
+    "category": "audited_safe",
     "contract_name": "OpenZeppelin_Pausable",
     "function_name": "pause",
     "signature": "pause()",
@@ -191,6 +198,7 @@
   },
   {
     "id": "ref-defi-setfee-01",
+    "category": "audited_safe",
     "contract_name": "Uniswap_FeeController",
     "function_name": "setFee",
     "signature": "setFee(uint256)",
@@ -220,6 +228,7 @@
   },
   {
     "id": "ref-oz-accesscontrol-setrole-01",
+    "category": "audited_safe",
     "contract_name": "OpenZeppelin_AccessControl",
     "function_name": "setRole",
     "signature": "setRole(bytes32,address)",
@@ -241,6 +250,121 @@
       ],
       "edges": [
         [0, 1], [1, 2], [1, 3], [3, 4], [4, 5]
+      ]
+    }
+  },
+  {
+    "id": "vuln-pattern-roi-transferOwnership",
+    "category": "known_vulnerable",
+    "contract_name": "KnownVuln_HighYieldROI",
+    "function_name": "transferOwnership",
+    "signature": "transferOwnership(address)",
+    "parameters": ["address"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "MISSING_GUARD",
+    "guard_code": "NONE (VULNERABLE)",
+    "vulnerability_type": "Missing onlyOwner Access Control",
+    "severity": "Critical",
+    "description": "Exploit pattern: public transferOwnership executes state modification without msg.sender caller authorization.",
+    "source_code": "function transferOwnership(address newOwner) public {\n    require(newOwner != address(0), \"Invalid new owner\");\n    owner = newOwner;\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY transferOwnership(address newOwner)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (newOwner != address(0))", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"Invalid new owner\"", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "STATE_ASSIGN", "code": "owner = newOwner", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 5, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5]
+      ]
+    }
+  },
+  {
+    "id": "vuln-pattern-unprotected-withdraw",
+    "category": "known_vulnerable",
+    "contract_name": "KnownVuln_TreasuryDrain",
+    "function_name": "withdraw",
+    "signature": "withdraw(uint256)",
+    "parameters": ["uint256"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "MISSING_GUARD",
+    "guard_code": "NONE (VULNERABLE)",
+    "vulnerability_type": "Missing caller authorization on native balance transfer",
+    "severity": "Critical",
+    "description": "Exploit pattern: withdraw function checks contract balance but omits msg.sender == owner check before transferring ETH.",
+    "source_code": "function withdraw(uint256 amount) public {\n    require(amount <= address(this).balance, \"Insufficient balance\");\n    totalReserve -= amount;\n    payable(msg.sender).transfer(amount);\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY withdraw(uint256 amount)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (amount <= address(this).balance)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"Insufficient balance\"", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "STATE_ASSIGN", "code": "totalReserve -= amount", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 5, "type": "CALL_EXTERNAL", "code": "payable(msg.sender).transfer(amount)", "is_guard": false, "reads_sender": true, "modifies_state": true },
+        { "id": 6, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [5, 6]
+      ]
+    }
+  },
+  {
+    "id": "vuln-pattern-erc20-rescue-drain",
+    "category": "known_vulnerable",
+    "contract_name": "KnownVuln_TokenRescueDrain",
+    "function_name": "transferAnyERC20Token",
+    "signature": "transferAnyERC20Token(address,address,uint256)",
+    "parameters": ["address", "address", "uint256"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "MISSING_GUARD",
+    "guard_code": "NONE (VULNERABLE)",
+    "vulnerability_type": "Arbitrary external token drainage",
+    "severity": "Critical",
+    "description": "Exploit pattern: transferAnyERC20Token is public without admin check, allowing any caller to drain third-party tokens held by contract.",
+    "source_code": "function transferAnyERC20Token(address tokenAddress, address to, uint256 amount) public returns (bool success) {\n    success = IERC20(tokenAddress).transfer(to, amount);\n    return success;\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY transferAnyERC20Token(address tokenAddress, address to, uint256 amount)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "CALL_EXTERNAL", "code": "IERC20(tokenAddress).transfer(to, amount)", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 2, "type": "RETURN", "code": "RETURN success", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2]
+      ]
+    }
+  },
+  {
+    "id": "vuln-pattern-unprotected-mint",
+    "category": "known_vulnerable",
+    "contract_name": "KnownVuln_InfiniteMinter",
+    "function_name": "mint",
+    "signature": "mint(address,uint256)",
+    "parameters": ["address", "uint256"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "MISSING_GUARD",
+    "guard_code": "NONE (VULNERABLE)",
+    "vulnerability_type": "Unprotected infinite token minting",
+    "severity": "Critical",
+    "description": "Exploit pattern: public mint function modifies state variables totalSupply and balances without minter role or owner authentication.",
+    "source_code": "function mint(address to, uint256 amount) public {\n    require(to != address(0), \"Zero address\");\n    totalSupply += amount;\n    balanceOf[to] += amount;\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY mint(address to, uint256 amount)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (to != address(0))", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"Zero address\"", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "STATE_ASSIGN", "code": "totalSupply += amount", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 5, "type": "STATE_ASSIGN", "code": "balanceOf[to] += amount", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 6, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [5, 6]
       ]
     }
   }
