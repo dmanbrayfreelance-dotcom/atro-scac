@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:8000/api';
+// Dynamically resolve API URL: supports Render deployments, custom env vars, and local dev
+const API_BASE = import.meta.env.VITE_API_BASE_URL || (
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8000/api'
+    : '/api'
+);
 
 const api = axios.create({
   baseURL: API_BASE,

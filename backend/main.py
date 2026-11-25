@@ -284,6 +284,15 @@ async def analyze_file_upload(file: UploadFile = File(...)):
     return analyze_contract(req)
 
 
+from fastapi.staticfiles import StaticFiles
+
+# Serve production frontend if built (enables single-service full-stack deployment on Render)
+FRONTEND_DIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "dist")
+if os.path.exists(FRONTEND_DIST):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

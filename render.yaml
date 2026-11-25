@@ -1,0 +1,12 @@
+services:
+  # Unified Full-Stack Web Service (Serves both Backend API & React UI)
+  - type: web
+    name: astro-smart-contract-auditor
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "cd frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
