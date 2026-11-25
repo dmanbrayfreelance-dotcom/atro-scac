@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #090314;
+    color: #ffffff;
+    selection-background-color: #ec4899;
+    selection-color: #ffffff;
+  }
+}
+
+::selection {
+  background-color: #ec4899;
+  color: #ffffff;
+}
+
+/* Custom scrollbars (Purple / Pink / White) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090314;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2e1254;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ec4899;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}

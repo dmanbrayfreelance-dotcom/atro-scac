@@ -1,0 +1,247 @@
+[
+  {
+    "id": "ref-oz-transferOwnership-01",
+    "contract_name": "OpenZeppelin_Ownable",
+    "function_name": "transferOwnership",
+    "signature": "transferOwnership(address)",
+    "parameters": ["address"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "onlyOwner",
+    "guard_code": "require(msg.sender == _owner, \"Ownable: caller is not the owner\");",
+    "description": "Standard OpenZeppelin Ownable transferOwnership implementation protected by onlyOwner modifier.",
+    "source_code": "function transferOwnership(address newOwner) public virtual onlyOwner {\n    require(newOwner != address(0), \"Ownable: new owner is the zero address\");\n    _transferOwnership(newOwner);\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY transferOwnership(address newOwner)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (msg.sender == _owner)", "is_guard": true, "reads_sender": true, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"Ownable: caller is not the owner\"", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "IF", "code": "IF (newOwner != address(0))", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 5, "type": "REVERT", "code": "REVERT \"Ownable: new owner is the zero address\"", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 6, "type": "ENDIF", "code": "ENDIF", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 7, "type": "STATE_ASSIGN", "code": "_owner = newOwner", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 8, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [4, 6], [6, 7], [7, 8]
+      ]
+    }
+  },
+  {
+    "id": "ref-solmate-transferOwnership-02",
+    "contract_name": "Solmate_Auth",
+    "function_name": "transferOwnership",
+    "signature": "transferOwnership(address)",
+    "parameters": ["address"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "requiresAuth",
+    "guard_code": "require(msg.sender == owner, \"UNAUTHORIZED\");",
+    "description": "Solmate Auth transferOwnership guarded by sender authorization.",
+    "source_code": "function transferOwnership(address newOwner) public virtual {\n    require(msg.sender == owner, \"UNAUTHORIZED\");\n    owner = newOwner;\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY transferOwnership(address newOwner)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (msg.sender == owner)", "is_guard": true, "reads_sender": true, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"UNAUTHORIZED\"", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "STATE_ASSIGN", "code": "owner = newOwner", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 5, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5]
+      ]
+    }
+  },
+  {
+    "id": "ref-oz-withdraw-01",
+    "contract_name": "OpenZeppelin_PaymentSplitter",
+    "function_name": "withdraw",
+    "signature": "withdraw(uint256)",
+    "parameters": ["uint256"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "onlyOwner",
+    "guard_code": "require(msg.sender == owner, \"Only owner can withdraw\");",
+    "description": "Treasury vault withdraw with owner guard and balance verification.",
+    "source_code": "function withdraw(uint256 amount) public onlyOwner {\n    require(amount <= address(this).balance, \"Insufficient balance\");\n    payable(owner).transfer(amount);\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY withdraw(uint256 amount)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (msg.sender == owner)", "is_guard": true, "reads_sender": true, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"Only owner can withdraw\"", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "IF", "code": "IF (amount <= address(this).balance)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 5, "type": "REVERT", "code": "REVERT \"Insufficient balance\"", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 6, "type": "ENDIF", "code": "ENDIF", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 7, "type": "CALL_EXTERNAL", "code": "payable(owner).transfer(amount)", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 8, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [4, 6], [6, 7], [7, 8]
+      ]
+    }
+  },
+  {
+    "id": "ref-safe-rescue-token-01",
+    "contract_name": "SafeTokenRescuer",
+    "function_name": "transferAnyERC20Token",
+    "signature": "transferAnyERC20Token(address,address,uint256)",
+    "parameters": ["address", "address", "uint256"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "onlyOwner",
+    "guard_code": "require(msg.sender == owner, \"Caller is not owner\");",
+    "description": "Safe recovery of trapped ERC20 tokens strictly restricted to contract owner.",
+    "source_code": "function transferAnyERC20Token(address tokenAddress, address to, uint256 amount) public onlyOwner returns (bool success) {\n    return IERC20(tokenAddress).transfer(to, amount);\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY transferAnyERC20Token(address tokenAddress, address to, uint256 amount)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (msg.sender == owner)", "is_guard": true, "reads_sender": true, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"Caller is not owner\"", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "CALL_EXTERNAL", "code": "IERC20(tokenAddress).transfer(to, amount)", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 5, "type": "RETURN", "code": "RETURN success", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5]
+      ]
+    }
+  },
+  {
+    "id": "ref-oz-mint-01",
+    "contract_name": "OpenZeppelin_ERC20PresetMinterPauser",
+    "function_name": "mint",
+    "signature": "mint(address,uint256)",
+    "parameters": ["address", "uint256"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "onlyRole",
+    "guard_code": "require(hasRole(MINTER_ROLE, msg.sender), \"Must have minter role\");",
+    "description": "Audited token minting function restricted to addresses with MINTER_ROLE.",
+    "source_code": "function mint(address to, uint256 amount) public virtual {\n    require(hasRole(MINTER_ROLE, msg.sender), \"ERC20PresetMinterPauser: must have minter role to mint\");\n    _mint(to, amount);\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY mint(address to, uint256 amount)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF hasRole(MINTER_ROLE, msg.sender)", "is_guard": true, "reads_sender": true, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"must have minter role to mint\"", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "STATE_ASSIGN", "code": "totalSupply += amount", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 5, "type": "STATE_ASSIGN", "code": "balanceOf[to] += amount", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 6, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [5, 6]
+      ]
+    }
+  },
+  {
+    "id": "ref-oz-burn-01",
+    "contract_name": "OpenZeppelin_ERC20Burnable",
+    "function_name": "burn",
+    "signature": "burn(uint256)",
+    "parameters": ["uint256"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "balanceCheck",
+    "guard_code": "require(balanceOf[msg.sender] >= amount, \"Burn amount exceeds balance\");",
+    "description": "Standard token burn verifying sender balance.",
+    "source_code": "function burn(uint256 amount) public virtual {\n    require(balanceOf[msg.sender] >= amount, \"Burn amount exceeds balance\");\n    _burn(msg.sender, amount);\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY burn(uint256 amount)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (balanceOf[msg.sender] >= amount)", "is_guard": true, "reads_sender": true, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"Burn amount exceeds balance\"", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "STATE_ASSIGN", "code": "balanceOf[msg.sender] -= amount", "is_guard": false, "reads_sender": true, "modifies_state": true },
+        { "id": 5, "type": "STATE_ASSIGN", "code": "totalSupply -= amount", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 6, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [5, 6]
+      ]
+    }
+  },
+  {
+    "id": "ref-oz-pause-01",
+    "contract_name": "OpenZeppelin_Pausable",
+    "function_name": "pause",
+    "signature": "pause()",
+    "parameters": [],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "onlyOwner",
+    "guard_code": "require(msg.sender == owner, \"Pausable: caller is not the owner\");",
+    "description": "Emergency pause function restricted to contract owner/admin.",
+    "source_code": "function pause() public onlyOwner {\n    _pause();\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY pause()", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (msg.sender == owner)", "is_guard": true, "reads_sender": true, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"Pausable: caller is not the owner\"", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "STATE_ASSIGN", "code": "_paused = true", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 5, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5]
+      ]
+    }
+  },
+  {
+    "id": "ref-defi-setfee-01",
+    "contract_name": "Uniswap_FeeController",
+    "function_name": "setFee",
+    "signature": "setFee(uint256)",
+    "parameters": ["uint256"],
+    "visibility": "external",
+    "is_state_mutating": true,
+    "guard_type": "onlyFeeToSetter",
+    "guard_code": "require(msg.sender == feeSetter, \"FORBIDDEN\");",
+    "description": "Protocol fee adjustment restricted to feeSetter address with bounds validation.",
+    "source_code": "function setFee(uint256 _fee) external {\n    require(msg.sender == feeSetter, \"FORBIDDEN\");\n    require(_fee <= 1000, \"Fee too high\");\n    protocolFee = _fee;\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY setFee(uint256 _fee)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF (msg.sender == feeSetter)", "is_guard": true, "reads_sender": true, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"FORBIDDEN\"", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "IF", "code": "IF (_fee <= 1000)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 5, "type": "REVERT", "code": "REVERT \"Fee too high\"", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 6, "type": "ENDIF", "code": "ENDIF", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 7, "type": "STATE_ASSIGN", "code": "protocolFee = _fee", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 8, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [4, 6], [6, 7], [7, 8]
+      ]
+    }
+  },
+  {
+    "id": "ref-oz-accesscontrol-setrole-01",
+    "contract_name": "OpenZeppelin_AccessControl",
+    "function_name": "setRole",
+    "signature": "setRole(bytes32,address)",
+    "parameters": ["bytes32", "address"],
+    "visibility": "public",
+    "is_state_mutating": true,
+    "guard_type": "onlyAdmin",
+    "guard_code": "require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), \"AccessControl: sender must be an admin\");",
+    "description": "Role grant/assignment restricted to DEFAULT_ADMIN_ROLE admin.",
+    "source_code": "function setRole(bytes32 role, address account) public {\n    require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), \"AccessControl: sender must be an admin\");\n    _roles[role][account] = true;\n}",
+    "acfg": {
+      "nodes": [
+        { "id": 0, "type": "ENTRY", "code": "ENTRY setRole(bytes32 role, address account)", "is_guard": false, "reads_sender": false, "modifies_state": false },
+        { "id": 1, "type": "IF", "code": "IF hasRole(DEFAULT_ADMIN_ROLE, msg.sender)", "is_guard": true, "reads_sender": true, "modifies_state": false },
+        { "id": 2, "type": "REVERT", "code": "REVERT \"AccessControl: sender must be an admin\"", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 3, "type": "ENDIF", "code": "ENDIF", "is_guard": true, "reads_sender": false, "modifies_state": false },
+        { "id": 4, "type": "STATE_ASSIGN", "code": "_roles[role][account] = true", "is_guard": false, "reads_sender": false, "modifies_state": true },
+        { "id": 5, "type": "RETURN", "code": "RETURN", "is_guard": false, "reads_sender": false, "modifies_state": false }
+      ],
+      "edges": [
+        [0, 1], [1, 2], [1, 3], [3, 4], [4, 5]
+      ]
+    }
+  }
+]
